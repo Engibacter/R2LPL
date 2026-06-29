@@ -2,20 +2,21 @@ hydra:
   run:
     dir: ${output_dir}
   searchpath:
-    - pkg://hybrid_planner.config.common
-    - pkg://hybrid_planner.config.training
+    - pkg://lpl_planner.config.common
+    - pkg://lpl_planner.config.training
     - pkg://nuplan.planning.script.config.training
     - pkg://nuplan.planning.script.config.common
     - pkg://nuplan.planning.script.experiments
     - pkg://nuplan.planning.script.config.simulation
-    - pkg://hybrid_planner.config.simulation
+    - pkg://lpl_planner.config.simulation
 
 defaults:
   - scenario_builder: nuplan_test
   - scenario_filter: test14-hard
   - model: muvo_planner_v4_noap
-  - worker: custom_ray_distributed_server_128
+  - worker: custom_ray_distributed
   - ego_controller: two_stage_controller
+  - override ego_controller/tracker: pplqr_tracker
   - _self_
 
 # Basic
@@ -24,6 +25,9 @@ job_name: rollout_cache_test14_hard_ro0
 seed: 0
 distribute_by_scenario: true # Multi-node scenario repartitioning.
 distributed_timeout_seconds: 7200
+worker_threads_per_node: 128
+worker:
+  threads_per_node: ${worker_threads_per_node}
 
 # Output
 rollout_ckpt_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02/last.ckpt

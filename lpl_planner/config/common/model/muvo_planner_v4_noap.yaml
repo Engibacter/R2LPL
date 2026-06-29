@@ -1,4 +1,4 @@
-_target_: hybrid_planner.model.muvo_planner_v4.MUVOPlanner
+_target_: lpl_planner.model.muvo_planner_v4.MUVOPlanner
 _convert_: all
 
 intermidiate_dim: 256

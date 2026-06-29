@@ -52,11 +52,11 @@ set_default_path()
 
 # If set, use the env. variable to overwrite the Hydra config
 nuplan_spec = importlib.util.find_spec("nuplan")
-hybrid_planner_spec = importlib.util.find_spec("hybrid_planner")
+lpl_planner_spec = importlib.util.find_spec("lpl_planner")
 
 nuplan_dir = os.path.dirname(nuplan_spec.origin) 
-hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
-CONFIG_PATH = os.path.join(hybrid_planner_dir, "config/simulation")
+lpl_planner_dir = os.path.dirname(lpl_planner_spec.origin)
+CONFIG_PATH = os.path.join(lpl_planner_dir, "config/simulation")
 
 # if os.environ.get('NUPLAN_HYDRA_CONFIG_PATH') is not None:
 #     CONFIG_PATH = os.path.join('../../../../', CONFIG_PATH)

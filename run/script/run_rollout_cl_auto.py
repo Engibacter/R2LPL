@@ -9,6 +9,10 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from lpl_planner.utils.default_paths import configure_default_paths
 
 DEFAULT_PATHS = configure_default_paths()
@@ -28,7 +32,17 @@ def _run_command(command: List[str], dry_run: bool = False, env: Optional[Dict[s
     printable = " ".join(command)
     print(f"\n[rollout-cl-auto] {printable}", flush=True)
     if env:
-        preview_keys = ["CKPT_PATH", "ANCHOR_ROOT", "FILTER", "JOB_NAME", "REPLAY_IMAGE_SIZE_PX", "SIM_OUTPUT_DIR", "VIDEO_SAVE_DIR"]
+        preview_keys = [
+            "CKPT_PATH",
+            "ANCHOR_ROOT",
+            "FILTER",
+            "JOB_NAME",
+            "WORKER",
+            "WORKER_THREADS_PER_NODE",
+            "REPLAY_IMAGE_SIZE_PX",
+            "SIM_OUTPUT_DIR",
+            "VIDEO_SAVE_DIR",
+        ]
         preview = " ".join(f"{key}={env[key]}" for key in preview_keys if key in env)
         if preview:
             print(f"[rollout-cl-auto-env] {preview}", flush=True)
@@ -114,6 +128,8 @@ def _build_rollout_command(
     ]
     if args.rollout_worker:
         command.append(f"worker={args.rollout_worker}")
+    if args.rollout_worker_threads_per_node not in {None, ""}:
+        command.append(f"worker.threads_per_node={args.rollout_worker_threads_per_node}")
     rollout_style = "road" if args.road else str(args.rollout_retrieval_style)
     if rollout_style == "road":
         command.extend(
@@ -220,6 +236,7 @@ def _build_sim_command(
         "JOB_NAME": str(job_name),
         "BUILDER": str(args.sim_scenario_builder or args.scenario_builder),
         "WORKER": str(args.sim_worker),
+        "WORKER_THREADS_PER_NODE": str(args.sim_worker_threads_per_node),
         "CHALLENGE": str(args.sim_challenge),
         "NUM_GPU": str(args.sim_gpus_per_worker),
         "NUM_CPU": str(args.sim_cpus_per_worker),
@@ -410,9 +427,10 @@ def main() -> None:
     parser.add_argument(
         "--rollout-worker",
         type=str,
-        default=None,
+        default="custom_ray_distributed",
         help="Hydra worker config used to extract scenarios before rollout generation, e.g. custom_ray_distributed.",
     )
+    parser.add_argument("--rollout-worker-threads-per-node", type=str, default="128", help="Hydra worker.threads_per_node for rollout scenario extraction; use null for all CPUs.")
     parser.add_argument("--oracle-num-workers", type=int, default=192)
     parser.add_argument("--gpus-per-worker", type=float, default=0.03)
     parser.add_argument("--oracle-gpus-per-worker", type=float, default=0.0)
@@ -448,7 +466,8 @@ def main() -> None:
 
     parser.add_argument("--sim-scenario-filter", type=str, default=None, help="Scenario filter for simulation. Defaults to --scenario-filter.")
     parser.add_argument("--sim-scenario-builder", type=str, default=None, help="Scenario builder for simulation. Defaults to --scenario-builder.")
-    parser.add_argument("--sim-worker", type=str, default="custom_ray_distributed_server_128")
+    parser.add_argument("--sim-worker", type=str, default="custom_ray_distributed")
+    parser.add_argument("--sim-worker-threads-per-node", type=str, default="128", help="worker.threads_per_node passed to simulation; use null for all CPUs.")
     parser.add_argument("--sim-challenge", type=str, default="closed_loop_nonreactive_agents")
     parser.add_argument("--sim-gpus-per-worker", type=float, default=0.03)
     parser.add_argument("--sim-cpus-per-worker", type=int, default=1)

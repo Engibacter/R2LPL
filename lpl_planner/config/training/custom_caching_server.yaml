@@ -14,7 +14,7 @@ defaults:
   - scenario_filter: training_scenarios_1M
   - model: null
   # Worker that is used to run simulations
-  - worker: custom_ray_distributed_server_96
+  - worker: custom_ray_distributed
   - splitter: log_splits
 
   # Trainer and callbacks
@@ -40,6 +40,9 @@ anchor_indice_strategy: expert_dist  # [expert_dist, scorer] how to choose ancho
 
 distribute_by_scenario: true
 distributed_timeout_seconds: 7200 # Sets how long to wait while synchronizing across worker nodes in a distributed context.
+worker_threads_per_node: 96
+worker:
+  threads_per_node: ${worker_threads_per_node}
 selected_simulation_metrics: null
 # Sets verbosity level, in particular determines if progress bars are shown or not.
 verbose: false

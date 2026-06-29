@@ -6,8 +6,8 @@ hydra:
     - pkg://nuplan.planning.script.config.common
     - pkg://nuplan.planning.script.experiments                  # Put experiments configs in script/experiments/<exp_dir>
     - pkg://nuplan.planning.script.config.simulation
-    - pkg://hybrid_planner.config.common
-    - pkg://hybrid_planner.config.simulation
+    - pkg://lpl_planner.config.common
+    - pkg://lpl_planner.config.simulation
 
 defaults:
   # Add ungrouped items

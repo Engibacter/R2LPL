@@ -1,9 +1,9 @@
 muvo_planner:
-  _target_: hybrid_planner.planning.planner.muvo_abstract_planner.MUVOAbstractPlanner
+  _target_: lpl_planner.planning.planner.muvo_abstract_planner.MUVOAbstractPlanner
   _convert_: all
 
   model:
-    _target_: hybrid_planner.model.muvo_planner_v4.MUVOPlanner
+    _target_: lpl_planner.model.muvo_planner_v4.MUVOPlanner
     _convert_: all
     intermidiate_dim: 256  # hidden dimension for the model
     prediction_decoder_depths: 5  # number of decoder layers for the prediction head

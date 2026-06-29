@@ -39,8 +39,8 @@ PREDICTION_USE_CV_DELTA=${PREDICTION_USE_CV_DELTA:-false}  # whether to use CV-b
 
 BUILDER=${BUILDER:-nuplan_test} # nuplan_trainval | nuplan_test
 FILTER=${FILTER:-test14-hard} # 'val14', 'val14-reduced', 'test14-random', 'test14-hard', 'test14-hard-test'
-WORKER=${WORKER:-custom_ray_distributed_server_128}
-# WORKER=custom_ray_distributed_server
+WORKER=${WORKER:-custom_ray_distributed}
+WORKER_THREADS_PER_NODE=${WORKER_THREADS_PER_NODE:-128}
 CHALLENGE=${CHALLENGE:-"closed_loop_nonreactive_agents"}
 # CHALLENGE="closed_loop_reactive_agents"
 # CHALLENGE="open_loop_boxes"
@@ -88,10 +88,12 @@ CKPT_PATH=${CKPT_PATH:-"$CKPT_ROOT/$CKPT"}
 
 python ./run/simulation/run_simulation_ray.py \
     +simulation=$CHALLENGE \
+    ego_controller/tracker=pplqr_tracker \
     planner=$PLANNER \
     scenario_builder=$BUILDER \
     scenario_filter=$FILTER \
     worker=$WORKER \
+    worker.threads_per_node=$WORKER_THREADS_PER_NODE \
     verbose=true \
     experiment_uid="" \
     output_dir="$SIM_OUTPUT_DIR" \

@@ -38,38 +38,19 @@ PREDICTION_USE_CV_DELTA=false  # whether to use CV-based delta (current implemen
 
 BUILDER=nuplan_test # nuplan_trainval | nuplan_test
 FILTER=test14-hard # 'val14', 'val14-reduced', 'test14-random', 'test14-hard', 'test14-hard-test'
-WORKER=custom_ray_distributed_server_64
-# WORKER=custom_ray_distributed_server
+WORKER=${WORKER:-custom_ray_distributed}
+WORKER_THREADS_PER_NODE=${WORKER_THREADS_PER_NODE:-64}
 CHALLENGE="closed_loop_nonreactive_agents"
 # CHALLENGE="closed_loop_reactive_agents"
 # CHALLENGE="open_loop_boxes"
 
 
-# PLANNER_ANCHOR=planner_anchors_M1024s_T1.0_step5_k1024.npy
-# PLANNER_ANCHOR="planner_anchors_M8192s_T8.0_step40_k8192.npy"
-# PLANNER_ANCHOR="planner_anchors_M8192s_T4.0_step20_k8192.npy"
-# PLANNER_ANCHOR="planner_anchors_M4096s_T4.0_step20_k4096.npy"
-# PLANNER_ANCHOR="planner_anchors_M4096s_T2.0_step10_k4096.npy"
-# PLANNER_ANCHOR="planner_anchors_M2048s_T2.0_step10_k2048.npy"
-# PLANNER_ANCHOR="planner_anchors_M1024s_T2.0_step10_k1024.npy"
-# PLANNER_ANCHOR="planner_anchors_M1024s_T1.0_step5_k1024.npy"
-# PLANNER_ANCHOR="planner_anchors_M4096s_T2.0_step10_dynamic.npy"
-# PLANNER_ANCHOR="planner_anchors_M8192s_T2.0_step10_dynamic.npy"
-# PLANNER_ANCHOR="planner_anchors_M512s_T1.0_step5_full.npy"
 PLANNER_ANCHOR=${PLANNER_ANCHOR:-"planner_anchors_M4096s_T4.0_step20_full.npy"}
-# PLANNER_ANCHOR="planner_anchors_M1024s_T2.0_step10_full.npy"
-# PLANNER_ANCHOR="planner_anchors_M16384s_T4.0_step20_full_sep_speed.npy"
-# PLANNER_ANCHOR="planner_anchors_M128s_T4.0_step20_full.npy"
 
 MAX_SPEED_DIFF=20 # maximum speed difference for dynamic scoring
 TRAIN_ANCHOR_NUM=${TRAIN_ANCHOR_NUM:-4096}
 TEST_ANCHOR_NUM=${TEST_ANCHOR_NUM:-4096} # number of anchors to sample during testing |512 for t > 2
 
-# CKPT=pm_muvo_t1_1024_noreg_ap_100/last.ckpt
-# CKPT=pm_muvo_t2_4096_noreg_ap_100/last.ckpt
-# CKPT=pm_muvo_t8_8192_noreg_ap_50/last.ckpt
-# CKPT="rl_muvo_t8_8192_noreg_noap_s100_v3/steps-step-001190.ckpt"
-# CKPT="pm_muvo_v4_t4_4096_full_ap_h4s_30_lw_anchor_score_softce02_expert/last.ckpt"
 CKPT=${CKPT:-"pm_muvo_v4_t4_4096_full_ap_h4s_30_lw_anchor_score_softce02/last.ckpt"}  
 
 # CKPT="mv_cl_single_agem_task_mem24000_r005/task_00_single_increment/last.ckpt"  # CL single increment ckpt
@@ -85,10 +66,12 @@ SIM_OUTPUT_DIR="$LOG_ROOT/$CHALLENGE/$JOB_NAME"
 
 python ./run/simulation/run_simulation_ray.py \
     +simulation=$CHALLENGE \
+    ego_controller/tracker=pplqr_tracker \
     planner=$PLANNER \
     scenario_builder=$BUILDER \
     scenario_filter=$FILTER \
     worker=$WORKER \
+    worker.threads_per_node=$WORKER_THREADS_PER_NODE \
     verbose=true \
     experiment_uid="" \
     output_dir="$SIM_OUTPUT_DIR" \
@@ -238,4 +221,3 @@ PY
 fi
 
 exit $SIM_EXIT_CODE
-

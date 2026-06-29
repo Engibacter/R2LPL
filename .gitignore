@@ -1,0 +1,32 @@
+# Editors / IDEs
+.vscode/
+.idea/
+
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Local experiment outputs
+results/
+logs/
+outputs/
+multirun/
+
+# Local data / model artifacts
+cache/
+checkpoints/
+planner_anchors/
+rollout_data/
+simulation_logs/
+simulation_videos/
+
+# OS files
+.DS_Store
+Thumbs.db

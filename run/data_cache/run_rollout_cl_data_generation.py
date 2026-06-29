@@ -33,10 +33,10 @@ configure_default_paths()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-hybrid_planner_spec = importlib.util.find_spec("hybrid_planner")
-hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
+lpl_planner_spec = importlib.util.find_spec("lpl_planner")
+lpl_planner_dir = os.path.dirname(lpl_planner_spec.origin)
 
-CONFIG_PATH = os.path.join(hybrid_planner_dir, "config/training")
+CONFIG_PATH = os.path.join(lpl_planner_dir, "config/training")
 CONFIG_NAME = "custom_rollout_caching_server"
 
 
