@@ -60,17 +60,15 @@ Detailed Test14-hard metrics across five ROCL updates:
 
 ## Setup
 
-The code builds on nuPlan. A typical setup is:
+The code are trained and evaluated on nuPlan, please refer to official repo of [nuplan-devkit](https://github.com/motional/nuplan-devkit) for detailed info on installation and dataset setup.
+
+Once you have downloaded the dataset and set up the nuplan-devkit, you can setup R2LPL with:
 
 ```bash
-conda env create -f /path/to/nuplan-devkit/environment.yml -n r2lpl
-conda activate r2lpl
+cd && git clone https://github.com/Engibacter/R2LPL.git && cd R2LPL
 
-cd /path/to/nuplan-devkit
-pip install -e .
-
-cd /path/to/R2LPL
 pip install -r requirements.txt
+
 pip install -e .
 ```
 
