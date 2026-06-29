@@ -1,0 +1,85 @@
+import logging
+import os
+from pathlib import Path
+
+import numpy as np
+if not hasattr(np, "bool8"):
+    np.bool8 = np.bool_
+
+import hydra
+import nest_asyncio
+from hydra.utils import instantiate
+from omegaconf import DictConfig
+import importlib.util
+
+from nuplan.common.actor_state.vehicle_parameters import VehicleParameters
+from nuplan.planning.nuboard.nuboard import NuBoard
+from nuplan.planning.script.builders.scenario_building_builder import build_scenario_builder
+from nuplan.planning.script.builders.utils.utils_config import update_config_for_nuboard
+from nuplan.planning.script.utils import set_default_path
+from lpl_planner.utils.default_paths import configure_default_paths
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+
+# If set, use the env. variable to overwrite the default dataset and experiment paths
+configure_default_paths()
+set_default_path()
+
+nuplan_spec = importlib.util.find_spec("nuplan")
+hybrid_planner_spec = importlib.util.find_spec("hybrid_planner")
+
+nuplan_dir = os.path.dirname(nuplan_spec.origin) 
+hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
+CONFIG_PATH = os.path.join(hybrid_planner_dir, "config/nuboard")
+CONFIG_NAME = 'default_nuboard'
+
+
+nest_asyncio.apply()
+
+
+def initialize_nuboard(cfg: DictConfig) -> NuBoard:
+    """
+    Sets up dependencies and instantiates a NuBoard object.
+    :param cfg: DictConfig. Configuration that is used to run the experiment.
+    :return: NuBoard object.
+    """
+    # Update and override configs for nuboard
+    update_config_for_nuboard(cfg=cfg)
+
+    scenario_builder = build_scenario_builder(cfg)
+
+    # Build vehicle parameters
+    vehicle_parameters: VehicleParameters = instantiate(cfg.scenario_builder.vehicle_parameters)
+    profiler_path = None
+    if cfg.profiler_path:
+        profiler_path = Path(cfg.profiler_path)
+
+    nuboard = NuBoard(
+        profiler_path=profiler_path,
+        nuboard_paths=cfg.simulation_path,
+        scenario_builder=scenario_builder,
+        port_number=cfg.port_number,
+        resource_prefix=cfg.resource_prefix,
+        vehicle_parameters=vehicle_parameters,
+        async_scenario_rendering=cfg.async_scenario_rendering,
+        scenario_rendering_frame_rate_cap_hz=cfg.scenario_rendering_frame_rate_cap_hz,
+    )
+
+    return nuboard
+
+
+@hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
+def main(cfg: DictConfig) -> None:
+    """
+    Execute all available challenges simultaneously on the same scenario.
+    :param cfg: DictConfig. Configuration that is used to run the experiment.
+    """
+    nuboard = initialize_nuboard(cfg)
+    nuboard.run()
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,57 @@
+hydra:
+  run:
+    dir: ${output_dir}
+  # output_subdir: ${output_dir}/code/hydra           # Store hydra's config breakdown here for debugging
+  searchpath:                                       # Only <exp_dir> in these paths are discoverable
+    - pkg://hybrid_planner.config.common
+    - pkg://hybrid_planner.config.training
+    - pkg://nuplan.planning.script.config.training
+    - pkg://nuplan.planning.script.config.common
+    - pkg://nuplan.planning.script.experiments      # Put experiments configs in script/experiments/<exp_dir>
+
+defaults:
+  - scenario_builder: nuplan_trainval
+  - scenario_filter: training_scenarios_1M
+  - model: null
+  # Worker that is used to run simulations
+  - worker: custom_ray_distributed_server_96
+  - splitter: log_splits
+
+  # Trainer and callbacks
+  - lightning: default_lightning
+  - callbacks: default_callbacks
+
+  # Optimizer settings
+  - optimizer: adam  # [adam, adamw] supported optimizers
+  - lr_scheduler: null  # [one_cycle_lr] supported lr_schedulers
+  - warm_up_lr_scheduler: null  # [linear_warm_up, constant_warm_up] supported warm up lr schedulers
+  - _self_
+
+output_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/logs  # Base output directory
+
+job_name: 'trainval_caching'  # Name of this caching job, used to create subfolder in cache_path
+experiment_name: 'caching'
+split_iteration: false  # whether to split data by scenario iteration in caching, which creates more fine-grained cache files and can speed up training when only a subset of iterations are needed
+scenario_stats_only: false  # build scenarios and print per-scenario_type counts without writing cache
+override_anchor_score: false
+override_anchor_indice: false
+check_valid: false  # validate existing anchor cache files before skip logic; corrupted files are force-regenerated
+anchor_indice_strategy: expert_dist  # [expert_dist, scorer] how to choose anchor indice when appending anchor metadata
+
+distribute_by_scenario: true
+distributed_timeout_seconds: 7200 # Sets how long to wait while synchronizing across worker nodes in a distributed context.
+selected_simulation_metrics: null
+# Sets verbosity level, in particular determines if progress bars are shown or not.
+verbose: false
+
+
+
+# Cache parameters
+cache:
+  cache_path: ${oc.env:R2LPL_CACHE_ROOT,results/cache} # Local/remote path to store all preprocessed artifacts from the data pipeline
+  use_cache_without_dataset: false                    # Load all existing features from a local/remote cache without loading the dataset
+  force_feature_computation: false                    # Recompute features even if a cache exists
+  cleanup_cache: false                                # Cleanup cached data in the cache_path, this ensures that new data are generated if the same cache_path is passed
+  scene_tokens_path: null                             # Optional explicit selected scenario token json path; defaults to <cache_path>/<job_name>/selected_scenario_tokens.json
+  scene_tokens_name: selected_scenario_tokens.json   # Scenario token json filename used when scene_tokens_path is not set
+  write_scene_tokens_json: true                      # Write selected scenario tokens for this caching run after caching completes

@@ -1,0 +1,56 @@
+_target_: hybrid_planner.model.muvo_planner_v4.MUVOPlanner
+_convert_: all
+
+intermidiate_dim: 256
+encoder_depth: 4
+planning_decoder_depths: 8
+prediction_decoder_depths: 5
+use_agent_context_decoder: true
+agent_context_decoder_depths: 2
+
+future_sampling:
+  _target_: nuplan.planning.simulation.trajectory.trajectory_sampling.TrajectorySampling
+  _convert_: all
+  num_poses: 20
+  interval_length: 0.2
+
+planner_anchor_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/planner_anchors/planner_anchors_M4096s_T4.0_step20_full.npy
+
+regression_loss_weight: 0.0
+regression_yaw_loss_weight: 0.0
+classification_loss_weight: 30.0
+prediction_loss_weight: 1.0
+
+train_anchor_num: 128
+test_anchor_num: 128
+score_chunk_size: 512
+
+use_prediction: false
+num_prediction_modes: 3
+prediction_confidence_loss_weight: 0.1
+prediction_use_cv_delta: false
+prediction_delta_scale: 1.0
+prediction_time_weight_gamma: 0.5
+prediction_ade_weight: 1.0
+prediction_fde_weight: 2.0
+prediction_yaw_weight: 0.5
+prediction_yaw_end_weight: 0.5
+prediction_vel_weight: 0.2
+prediction_vel_end_weight: 0.2
+prediction_diversity_weight: 0.0
+prediction_diversity_margin: 2.0
+
+imitation_target_tau: 0.05
+teacher_anchor_ratio: 0.25
+teacher_min_anchor_num: 1
+teacher_prefilter_topk: 128
+teacher_ce_weight: 1.0
+teacher_ce_label_smoothing: 0.1
+anchor_score_kl_weight: 1.0
+use_anchor_score_kl_loss: false
+anchor_score_neg_loss_weight: 1.0
+neg_delta_margin: 0.5
+neg_delta_floor: 1.0
+neg_delta_slope: 1.0
+
+debug: false

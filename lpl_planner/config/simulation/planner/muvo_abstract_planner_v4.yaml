@@ -1,0 +1,60 @@
+muvo_planner:
+  _target_: hybrid_planner.planning.planner.muvo_abstract_planner.MUVOAbstractPlanner
+  _convert_: all
+
+  model:
+    _target_: hybrid_planner.model.muvo_planner_v4.MUVOPlanner
+    _convert_: all
+    intermidiate_dim: 256  # hidden dimension for the model
+    prediction_decoder_depths: 5  # number of decoder layers for the prediction head
+    use_agent_context_decoder: false
+    agent_context_decoder_depths: 2
+    future_sampling:
+      _target_: nuplan.planning.simulation.trajectory.trajectory_sampling.TrajectorySampling
+      _convert_: 'all'
+      num_poses: 20 # target future poses
+      interval_length: 0.2 # interval of samples [s]
+    planner_anchor_path: '${oc.env:R2LPL_RESULTS_ROOT,results}/planner_anchors/planner_anchor.npy'
+    # planner_anchor_path: '${oc.env:R2LPL_RESULTS_ROOT,results}/planner_anchors/planner_anchor.npy'
+    train_anchor_num: 256
+    test_anchor_num: 256
+    use_prediction: True
+    score_chunk_size: 512
+    teacher_anchor_ratio: 0.1
+    teacher_min_anchor_num: 1
+    teacher_prefilter_topk: 128
+    num_prediction_modes: 3
+    prediction_use_cv_delta: false  # whether to use CV-based delta (current implementation) or simple future-expert delta for prediction supervision
+
+  ckpt_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/pm_training_multi_9n_1/version_0/checkpoints/last-v2.ckpt  # path to the model checkpoint
+
+  save_replay: true  # whether to save replay of the simulation
+  video_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/simulation_videos  # directory to save simulation videos
+  use_eval: false # whether to use trajectory evaluator to evaluate the trajectories
+  num_samples: 64 # number of trajectory samples to generate
+  oracle_teacher_topk: 22  # per-teacher oracle preselection count; set to ~num_samples/3 to bound rollout replanning cost
+  oracle_max_eval_candidates: 64  # cap oracle evaluator rescoring candidates after teacher union
+  top_k: 0.0  # number of top trajectories to consider
+  top_p: 0.0  # cumulative probability for nucleus sampling
+  device: "auto"   # or "cpu"
+  use_hausdorff: false  # whether to use hausdorff distance in scoring
+  hausdorff_weight: 0.1  # weight for hausdorff distance in scoring
+  debug: false
+  use_anchor_velocity: false  # whether to use anchor velocity in scoring
+  pred_logprob_weight: 1.0  # weight for prediction log probability in scoring
+  eval_logprob_weight: 2.0  # weight for anchor score in scoring
+  save_rollout_data: false  # whether to save rollout data for future training
+  rollout_cache_dir: '${oc.env:R2LPL_RESULTS_ROOT,results}/rollout_data' # path to save rollout data
+  prediction_mode: 'prediction'  # 'CV', 'CA', 'CYAW', 'prediction'
+  eval_sampling_dt: 0.1 # sampling interval for evaluation, only used when use_eval is true
+
+  future_sampling:   # future sampling config
+    _target_: nuplan.planning.simulation.trajectory.trajectory_sampling.TrajectorySampling
+    _convert_: 'all'
+    num_poses: 20 # target future poses
+    interval_length: 0.2 # interval of samples [s]
+  history_sampling:
+    _target_: nuplan.planning.simulation.trajectory.trajectory_sampling.TrajectorySampling
+    _convert_: 'all'
+    num_poses: 15 # target history poses
+    interval_length: 0.2 # interval of samples [s]

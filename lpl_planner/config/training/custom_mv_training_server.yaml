@@ -1,0 +1,92 @@
+hydra:
+  # run:
+  #   dir: ${output_dir}
+  # output_subdir: ${output_dir}/code/hydra           # Store hydra's config breakdown here for debugging
+  searchpath:                                       # Only <exp_dir> in these paths are discoverable
+    - pkg://hybrid_planner.config.common
+    - pkg://hybrid_planner.config.training
+    - pkg://nuplan.planning.script.config.training
+    - pkg://nuplan.planning.script.config.common
+    - pkg://nuplan.planning.script.experiments      # Put experiments configs in script/experiments/<exp_dir>
+
+defaults:
+  
+  - scenario_builder: nuplan_mini
+  - scenario_filter: training_scenarios_1M
+  - model: muvo_planner_v4_noap
+  # Worker that is used to run simulations
+  - worker: custom_ray_distributed_server
+
+  # Trainer and callbacks
+  - lightning: custom_lightning_server
+  # - callbacks: default_callbacks
+
+  # Optimizer settings
+  - optimizer: adam  # [adam, adamw] supported optimizers
+  - lr_scheduler: null  # [one_cycle_lr] supported lr_schedulers
+  - warm_up_lr_scheduler: null  # [linear_warm_up, constant_warm_up] supported warm up lr schedulers
+
+  # data splitter
+  # - splitter: log_splits # log_splits | test_splitter
+  - splitter: test_splitter
+
+  - _self_
+
+job_name: 'pm_mudo_single_20n_test'  # Name of this caching job, used to create subfolder in cache_path
+experiment_name: 'training'
+
+distribute_by_scenario: true
+distributed_timeout_seconds: 7200 # Sets how long to wait while synchronizing across worker nodes in a distributed context.
+selected_simulation_metrics: null
+# Sets verbosity level, in particular determines if progress bars are shown or not.
+verbose: false
+max_epoch: 3  # maximum number of training epochs
+use_device_num: -1  # which GPU to use, -1 for CPU, >=0 for GPU id
+learning_rate: 2e-4  # learning rate for optimizer
+warmup_steps: 2000  # number of warmup steps for learning rate scheduler
+check_invalid_grad: false  # whether to check for invalid gradients during training
+train_data: 'train_only'  # 'all' | 'train_only' | 'val_only'
+start_model_path: null  # optional checkpoint path for weights-only warm start
+# pretrained_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/pm_muvo_v3_t1_512_full_ap_50/last.ckpt # path to pretrained model checkpoint 2M
+# pretrained_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/pm_muvo_v3_t4_4k_se2f_full_ap_100/last.ckpt  # path to pretrained model checkpoint 10M
+pretrained_path: null  # path to pretrained model checkpoint
+disable_checkpointing: false  # set true for smoke tests or dry validation runs
+visualize: true  # whether to visualize training samples
+
+# Cache parameters
+cache:
+  cache_path: ${oc.env:R2LPL_CACHE_ROOT,results/cache}/trainval_caching # Local/remote path to store all preprocessed artifacts from the data pipeline
+  expand_iteration: false  # Whether to expand the dataset by iterating multiple times over each scenario with different random seeds for sampling
+  use_cache_without_dataset: false                    # Load all existing features from a local/remote cache without loading the dataset
+  force_feature_computation: false                    # Recompute features even if a cache exists
+  cleanup_cache: false  
+  scene_tokens_path: null  # Optional explicit selected scenario token json path; defaults to <cache_path>/selected_scenario_tokens.json when present
+  rollout_cache_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/rollout_data # Path to store rollout cache data
+  use_manifest: false  # Whether to use a manifest file to track cached features, which can speed up cache loading and reduce memory usage when the cache is large
+  use_anchor_indice: false  # Whether to use anchor indices for caching, which can speed up cache loading and reduce memory usage when the cache is large
+  use_anchor_score: false  # Whether to use anchor scores for caching, which can speed up cache loading and reduce memory usage when the cache is large
+  use_factorized_anchor_target: false  # Whether to load cached factorized path/velocity targets and indices
+  anchor_indice_name: null # anchor_score_name: null
+  anchor_score_name: null
+  factorized_anchor_target_name: null
+
+# dataset parameters
+dataset:
+  sample_per_scenario: 10  # number of samples to draw from each scenario
+  negative_sample_ratio: 0.5 # ratio of negative samples to include in the dataset [0->1]
+  val_ratio: 0.1  # ratio split from train dataset into validation after dataset construction
+  val_split_seed: 0  # random seed for train/val split performed by MVDataset.split_val_dataset
+
+dataloader:
+  params:
+    batch_size: 64  # number of samples per batch
+    num_workers: 16  # number of workers for data loading
+    pin_memory: true  # pin memory for faster GPU transfer
+    prefetch_factor: 4  # number of samples loaded in advance by each worker
+
+val_dataloader:
+  params:
+    batch_size: 32  # number of samples per batch
+    num_workers: 16  # number of workers for data loading
+    pin_memory: true  # pin memory for faster GPU transfer
+    prefetch_factor: 2  # number of samples loaded in advance by each worker

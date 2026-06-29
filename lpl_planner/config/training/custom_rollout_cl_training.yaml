@@ -1,0 +1,124 @@
+hydra:
+  searchpath:
+    - pkg://hybrid_planner.config.common
+    - pkg://hybrid_planner.config.training
+    - pkg://nuplan.planning.script.config.training
+    - pkg://nuplan.planning.script.config.common
+    - pkg://nuplan.planning.script.experiments
+
+defaults:
+  - model: muvo_planner_v4_noap
+  - lightning: custom_lightning_server
+  - optimizer: adam
+  - lr_scheduler: null
+  - warm_up_lr_scheduler: null
+  - _self_
+
+job_name: rollout_cl_derpp
+experiment_name: training
+checkpoint_root: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints
+distributed_timeout_seconds: 7200
+max_epoch: 10
+max_steps: -1
+use_device_num: 1
+learning_rate: 8e-5
+warmup_steps: 0
+check_invalid_grad: false
+start_model_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02/last.ckpt
+expand_iteration: false
+max_samples: null
+disable_checkpointing: false
+use_anchor_indice: true
+use_anchor_score: true
+anchor_indice_name: anchor_indice.gz
+anchor_score_name: anchor_scores.gz
+replay_target_name: replay_planner_targets.gz
+
+model:
+  use_expert_distance_guidance: false
+
+rollout:
+  cache_roots: [] # Each root is one rollout CL task, e.g. .../rollout_cl_cache/round_00.
+  cache_root_glob: null # Optional sorted glob alternative, e.g. .../rollout_cl_cache/round_*.
+
+expert_mix:
+  enabled: false # Adds same-scenario original expert cache as a separate supervised loader.
+  cache_path: ${oc.env:R2LPL_CACHE_ROOT,results/cache}/cl_expert_caching
+  expand_iteration: true # For run_data_caching_trainval.py split_iteration=true caches.
+  max_cache_samples: null
+  sample_basis: max # current_rollout, expert_pool, or max.
+  ratio: 0.25 # Fraction against sample_basis.
+  min_samples_per_task: 0 # Optional floor; 0 disables.
+  max_samples_per_task: 20000 # Optional cap; 0 disables.
+  loss_weight: 0.25
+  seed: 0
+
+dataloader:
+  drop_last: false
+  params:
+    batch_size: 24
+    num_workers: 4
+    pin_memory: true
+    prefetch_factor: 2
+
+val_dataloader:
+  params:
+    batch_size: 16
+    num_workers: 4
+    pin_memory: true
+    prefetch_factor: 2
+
+continual:
+  method: derpp # ft, replay, derpp, joint.
+  resume: true
+  start_task_index: auto # Use with memory.bootstrap_manifest when continuing from a previous rollout round.
+  eval_ratio: 0.10
+  eval_seed: 0
+  max_samples_per_task: null
+  current_eval_max_samples: 512
+  history_eval_max_samples: 512
+  memory_eval_max_samples: 512
+  replay_loss_weight: 1.0
+  derpp_distill_weight: 0.25
+  derpp_temperature: 1.0
+  derpp_rank_margin: 0.5
+  prediction_distill_weight: 0.0
+  distill_source: stored_logits
+  mas_enabled: false
+  mas_lambda: 1.0e-6
+  mas_update_alpha: 0.5
+  mas_max_batches: 32
+  memory:
+    capacity: 4096
+    partition_strategy: rollout_bucket # rollout_bucket, scene_type, task, none.
+    bootstrap_manifest: null # Previous rollout_continual_manifest.yaml used to restore memory refs.
+    rollout_priority:
+      enabled: true # Read rollout_cl_generation_summary.json and add risk/correction signals to memory scores.
+      summary_name: rollout_cl_generation_summary.json
+      normalize_components: true
+      train_loss_weight: 1.0
+      rollout_score_weight: 1.0
+      base_weight: 0.0
+      ttc_weight: 0.4
+      ttc_threshold_s: 1.0
+      low_best_score_weight: 0.3
+      best_score_floor: 0.15
+      reason_weights:
+        failure_window: 1.0
+        high_risk_context: 0.8
+        model_expert_disagreement: 0.6
+      state_class_weights:
+        near_log: 0.0
+        recoverable: 0.2
+        far_offpolicy: 0.3
+
+lightning:
+  trainer:
+    params:
+      max_epochs: ${max_epoch}
+      max_steps: ${max_steps}
+      log_every_n_steps: 5
+      devices: ${use_device_num}
+      accelerator: gpu
+      precision: '32'
+      default_root_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/logs/${job_name}

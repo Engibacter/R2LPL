@@ -1,0 +1,111 @@
+hydra:
+  run:
+    dir: ${output_dir}
+  searchpath:
+    - pkg://hybrid_planner.config.common
+    - pkg://hybrid_planner.config.training
+    - pkg://nuplan.planning.script.config.training
+    - pkg://nuplan.planning.script.config.common
+    - pkg://nuplan.planning.script.experiments
+    - pkg://nuplan.planning.script.config.simulation
+    - pkg://hybrid_planner.config.simulation
+
+defaults:
+  - scenario_builder: nuplan_test
+  - scenario_filter: test14-hard
+  - model: muvo_planner_v4_noap
+  - worker: custom_ray_distributed_server_128
+  - ego_controller: two_stage_controller
+  - _self_
+
+# Basic
+output_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/logs
+job_name: rollout_cache_test14_hard_ro0
+seed: 0
+distribute_by_scenario: true # Multi-node scenario repartitioning.
+distributed_timeout_seconds: 7200
+
+# Output
+rollout_ckpt_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02/last.ckpt
+rollout_package_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/rollout/${job_name}/rollout_packages # One package per rollout scenario.
+rollout_cl_cache_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/rollout/${job_name}/rollout_cl_cache # CL-readable cache root.
+rollout_debug_dir: ${rollout_cl_cache_dir}/_debug
+rollout_cl_summary_name: rollout_cl_generation_summary.json
+cache:
+  cache_path: ${oc.env:R2LPL_CACHE_ROOT,results/cache} # Fallback only.
+
+# Scenario Limit
+max_rollout_scenarios: null # Debug limit; null uses all selected scenarios.
+rollout_max_steps: null # Debug truncation; null lets scenario/env decide length.
+episode_len: null # Deprecated compatibility alias for rollout_max_steps.
+
+# Rollout Workers
+rollout_parallel: true
+num_workers: 96 # Rollout workers; oracle uses this when oracle_num_workers is 0.
+gpus_per_worker: 0.03
+cpus_per_worker: 1
+
+# Model Sampling
+num_samples: 32
+temperature: 1.0
+top_k: 0 # 0 disables top-k.
+top_p: 0.0
+deterministic_first: false
+dt: 0.2 # Fallback planning interval if model.future_sampling is unavailable.
+rollout_dt: 0.1 # Used only for distance_to_failure_s metadata.
+
+# Oracle Candidate Frames
+rollout_retrieval_style: r2lpl # r2lpl | road. road bypasses recoverability retrieval and uses rollout-as-demonstration targets.
+road_frame_stride: 5
+road_max_frames_per_scenario: 30
+road_model_score_weight: 0.35
+road_expert_score_weight: 0.65
+failure_window_steps: 40 # Failed rollouts: include frames before failure.
+keep_success_tail: false # Successful rollouts: include tail only if true.
+risk_ttc_threshold_s: 1.0 # High-risk if min TTC is below this.
+risk_pre_window_steps: 10 # Include M frames before each high-risk frame.
+ttc_max_distance_m: 15.0
+ttc_time_step_size: 0.1
+ttc_time_horizon_s: 3.0
+ttc_stopped_speed_threshold: 0.005
+disagreement_wait_speed_mps: 0.5
+disagreement_wait_progress_m: 1.0
+disagreement_forward_progress_gap_m: 2.0 # Expert waits but model moves forward.
+disagreement_lag_progress_gap_m: 3.0 # Model lags behind moving expert.
+disagreement_moving_speed_mps: 1.0
+
+# Oracle Workers
+oracle_parallel: true
+oracle_num_workers: 0 # 0 means reuse num_workers.
+oracle_gpus_per_worker: 0.0
+oracle_cpus_per_worker: 1
+
+# Oracle Anchor Recovery
+oracle_planner_anchor_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/planner_anchors/planner_anchors_M4096s_T4.0_step20_full.npy
+oracle_prefilter_topk: 1024 # Geometry candidates before simulator/evaluator.
+oracle_replay_topk: 256 # Top anchors saved for replay/distillation.
+oracle_score_min: 0.15 # All anchors <= this means unrecoverable.
+oracle_max_ref_distance_m: 6.0
+oracle_max_heading_error_rad: 1.0471975512
+oracle_fill_margin: 1.0 # Dense score fill margin for non-evaluated anchors.
+force_stop_anchor: true # Always evaluate the most stop-like anchor.
+stop_anchor_endpoint_distance_m: 0.75
+stop_anchor_mean_speed_mps: 0.3
+
+# State Classes
+near_log_xy_m: 1.0
+near_log_yaw_rad: 0.2617993878
+near_log_speed_mps: 2.0
+near_log_expert_margin: 0.05
+near_log_expert_min: 0.75
+recoverable_xy_m: 5.0
+recoverable_yaw_rad: 0.7853981634
+
+# Cache Filenames
+anchor_indice_name: anchor_indice.gz # Selected best anchor.
+anchor_score_name: anchor_scores.gz # Dense final anchor scores.
+replay_target_name: replay_planner_targets.gz # Top-k replay/distill targets.
+
+# Debug
+debug_rollout_cache: false
+debug_rollout_topk: 16
