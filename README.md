@@ -7,7 +7,7 @@ We are currently preparing the codebase for public release. The repository will 
 ## Current Status
 
 - [x] Initial repository created
-- [ ] Core implementation snapshot uploaded
+- [x] Core implementation uploaded
 - [ ] Environment setup instructions
 - [ ] Dataset preparation guide
 - [ ] Checkpoints and logs
