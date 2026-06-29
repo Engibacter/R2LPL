@@ -13,7 +13,7 @@ hydra:
 defaults:
   - scenario_builder: nuplan_test
   - scenario_filter: test14-hard
-  - model: muvo_planner_v4_noap
+  - model: muvo_planner
   - worker: custom_ray_distributed
   - ego_controller: two_stage_controller
   - override ego_controller/tracker: pplqr_tracker
