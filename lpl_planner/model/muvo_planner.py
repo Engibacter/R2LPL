@@ -11,7 +11,7 @@ from nuplan.planning.training.modeling.types import FeaturesType, TargetsType
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
 
 
-from lpl_planner.model.modules.scene_encoder_v2 import SceneFeatureIDX, SceneStateEncoder
+from lpl_planner.model.modules.scene_encoder import SceneFeatureIDX, SceneStateEncoder
 from lpl_planner.planning.scene.scene_feature.features import SceneFeature, AgentPrediction, AnchorIndice, AnchorScores
 from lpl_planner.model.modules import Mlp, LayerNorm
 from lpl_planner.planning.scene.trajectory_library import TrajectoryState
@@ -95,7 +95,7 @@ class MUVOPlanner(nn.Module):
         self.use_prediction = bool(use_prediction)
         self.use_agent_context_decoder = bool(use_agent_context_decoder)
         if self.use_prediction and self.use_agent_context_decoder:
-            raise ValueError("use_agent_context_decoder and use_prediction are mutually exclusive in MUVOPlanner v4.")
+            raise ValueError("use_agent_context_decoder and use_prediction are mutually exclusive in MUVOPlanner.")
         self.state_encoder = SceneStateEncoder(unified_dim=intermidiate_dim, 
                                                encoder_depth=encoder_depth,
                                                debug=self.debug)

@@ -7,8 +7,8 @@ hydra:
     - pkg://nuplan.planning.script.experiments
 
 defaults:
-  - model: muvo_planner_v4_noap
-  - lightning: custom_lightning_server
+  - model: muvo_planner
+  - lightning: custom_lightning
   - optimizer: adam
   - lr_scheduler: null
   - warm_up_lr_scheduler: null

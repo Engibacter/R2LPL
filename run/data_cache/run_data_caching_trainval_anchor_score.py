@@ -56,7 +56,7 @@ hybrid_planner_spec = importlib.util.find_spec("hybrid_planner")
 hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
 
 CONFIG_PATH = os.path.join(hybrid_planner_dir, "config/training")
-CONFIG_NAME = "custom_caching_server"
+CONFIG_NAME = "custom_caching"
 
 PLANNER_ANCHOR_PATH = Path(os.environ["R2LPL_RESULTS_ROOT"]) / "planner_anchors"
 PLANNER_ANCHOR_FILE = PLANNER_ANCHOR_PATH / "planner_anchors_M4096s_T4.0_step20_full.npy"

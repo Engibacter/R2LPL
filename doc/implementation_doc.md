@@ -56,7 +56,7 @@ and writes per-scenario files such as `anchor_indice.gz` and `anchor_scores.gz` 
 Run MV planner training from the cached data:
 
 ```bash
-bash run/script/run_mv_training_v4.sh
+bash run/script/run_mv_training.sh
 ```
 
 The wrapper defaults to:
@@ -70,7 +70,7 @@ output checkpoints: results/checkpoints/<JOB_NAME>/
 For scratch training, `START_MODEL_PATH=None` is used by default. To warm-start, pass:
 
 ```bash
-START_MODEL_PATH=results/checkpoints/<pretrained-job>/last.ckpt bash run/script/run_mv_training_v4.sh
+START_MODEL_PATH=results/checkpoints/<pretrained-job>/last.ckpt bash run/script/run_mv_training.sh
 ```
 
 ### Stage 3: Rollout CL

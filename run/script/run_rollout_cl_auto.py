@@ -82,7 +82,7 @@ def _normalize_method(method: str) -> str:
 
 
 def _round_job_name(iteration: int) -> str:
-    return f"rollout_muvo_V4_{iteration:02d}"
+    return f"rollout_muvo_{iteration:02d}"
 
 
 def _format_experiment_dir_name(scenario_filter: str, method_name: str, experiment_suffix: Optional[str]) -> str:
@@ -245,7 +245,7 @@ def _build_sim_command(
         "SAVE_NUBOARD_DATA": str(args.sim_save_nuboard_data).lower(),
     }
     env.update(dict(item.split("=", 1) for item in args.sim_env if "=" in item))
-    return ["bash", "run/script/run_muvo_planner_ray_v4_noap.sh"], env
+    return ["bash", "run/script/run_muvo_planner_ray.sh"], env
 
 
 def _simulation_logs_root(round_root: Path, scenario_filter: str, sim_challenge: str, sim_scenario_filter: Optional[str]) -> Path:
@@ -401,7 +401,7 @@ def _write_round_summary(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run N rounds of Muvo v4 rollout data generation + rollout CL training.")
+    parser = argparse.ArgumentParser(description="Run N rounds of Muvo rollout data generation + rollout CL training.")
     parser.add_argument("--rounds", type=int, required=True, help="Number of rollout+CL iterations to run.")
     parser.add_argument("--scenario-filter", type=str, default="test14-hard", help="Hydra scenario_filter config name and output directory name.")
     parser.add_argument("--scenario-builder", type=str, default="nuplan_test", help="Hydra scenario_builder config name and output directory name.")
@@ -474,7 +474,7 @@ def main() -> None:
     parser.add_argument("--sim-save-replay", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--sim-replay-image-size-px", type=int, default=768)
     parser.add_argument("--sim-save-nuboard-data", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--sim-env", nargs="*", default=[], help="Extra KEY=VALUE environment overrides for run_muvo_planner_ray_v4_noap.sh.")
+    parser.add_argument("--sim-env", nargs="*", default=[], help="Extra KEY=VALUE environment overrides for run_muvo_planner_ray.sh.")
 
     parser.add_argument("--rollout-overrides", nargs="*", default=[], help="Extra Hydra overrides for rollout generation.")
     parser.add_argument("--cl-overrides", nargs="*", default=[], help="Extra Hydra overrides for rollout CL training.")

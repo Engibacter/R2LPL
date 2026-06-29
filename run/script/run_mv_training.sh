@@ -5,7 +5,7 @@ export R2LPL_CACHE_ROOT=${R2LPL_CACHE_ROOT:-"$R2LPL_RESULTS_ROOT/cache"}
 RESULTS_DIR="$R2LPL_RESULTS_ROOT"
 mkdir -p "$RESULTS_DIR/checkpoints" "$RESULTS_DIR/planner_anchors" "$R2LPL_CACHE_ROOT"
 
-model=muvo_planner_v4_noap
+model=muvo_planner
 
 # dataset
 SPLIT=log_splits # log_splits | test_splitter

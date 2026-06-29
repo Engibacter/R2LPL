@@ -37,7 +37,7 @@ lpl_planner_spec = importlib.util.find_spec("lpl_planner")
 lpl_planner_dir = os.path.dirname(lpl_planner_spec.origin)
 
 CONFIG_PATH = os.path.join(lpl_planner_dir, "config/training")
-CONFIG_NAME = "custom_rollout_caching_server"
+CONFIG_NAME = "custom_rollout_caching"
 
 
 def _resolve_checkpoint_path(cfg: DictConfig) -> Optional[Path]:

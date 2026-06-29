@@ -35,7 +35,7 @@ nuplan_dir = os.path.dirname(nuplan_spec.origin)
 hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
 
 CONFIG_PATH = os.path.join(hybrid_planner_dir, "config/training")
-CONFIG_NAME = "custom_mv_training_server"
+CONFIG_NAME = "custom_mv_training"
 
 def _find_resume_ckpt(ckpt_dir: str) -> Optional[str]:
     

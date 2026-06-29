@@ -5,7 +5,7 @@ RESULTS_DIR="$R2LPL_RESULTS_ROOT"
 CKPT_ROOT=$RESULTS_DIR/checkpoints
 LOG_ROOT=$RESULTS_DIR/simulation_logs
 PORT_NUMBER=5006
-PLANNER=muvo_abstract_planner_v4
+PLANNER=muvo_abstract_planner
 BUILDER=nuplan_test # nuplan_trainval | nuplan_test
 FILTER=test14-hard-test # 'val14', 'val14-reduced', 'test14-random', 'test14-hard', 'test14-hard-test'
 

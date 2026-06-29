@@ -13,12 +13,12 @@ defaults:
   
   - scenario_builder: nuplan_mini
   - scenario_filter: training_scenarios_1M
-  - model: muvo_planner_v4_noap
+  - model: muvo_planner
   # Worker that is used to run simulations
   - worker: custom_ray_distributed
 
   # Trainer and callbacks
-  - lightning: custom_lightning_server
+  - lightning: custom_lightning
   # - callbacks: default_callbacks
 
   # Optimizer settings

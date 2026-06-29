@@ -55,7 +55,7 @@ hybrid_planner_spec = importlib.util.find_spec("hybrid_planner")
 hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
 
 CONFIG_PATH = os.path.join(hybrid_planner_dir, "config/training")
-CONFIG_NAME = "custom_caching_server"
+CONFIG_NAME = "custom_caching"
 
 
 

@@ -24,7 +24,7 @@ from nuplan.planning.simulation.trajectory.abstract_trajectory import AbstractTr
 from nuplan.planning.simulation.trajectory.interpolated_trajectory import InterpolatedTrajectory
 from nuplan.planning.training.modeling.types import FeaturesType
 
-from lpl_planner.model.muvo_planner_v4 import MUVOPlanner
+from lpl_planner.model.muvo_planner import MUVOPlanner
 from lpl_planner.planning.scene.scene_manager import SceneManager
 from lpl_planner.planning.scene.scene_feature.features import (
     SceneFeature,
