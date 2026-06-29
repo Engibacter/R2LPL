@@ -60,12 +60,14 @@ Detailed Test14-hard metrics across five ROCL updates:
 
 ## Setup
 
-The code are trained and evaluated on nuPlan, please refer to official repo of [nuplan-devkit](https://github.com/motional/nuplan-devkit) for detailed info on installation and dataset setup.
+The R2LPL are trained and evaluated on nuPlan, please refer to official repo of [nuplan-devkit](https://github.com/motional/nuplan-devkit) for detailed info on installation and dataset setup.
 
 Once you have downloaded the dataset and set up the nuplan-devkit, you can setup R2LPL with:
 
 ```bash
-cd && git clone https://github.com/Engibacter/R2LPL.git && cd R2LPL
+git clone https://github.com/Engibacter/R2LPL.git
+
+cd R2LPL
 
 pip install -r requirements.txt
 
@@ -76,8 +78,10 @@ pip install -e .
 
 Download the released checkpoint and planner anchors to the default paths expected by the configs:
 
+From the repository root:
+
 ```bash
-mkdir -p results/checkpoints/muvo_base_model results/planner_anchors
+cd /path/to/R2LPL
 
 wget -O results/checkpoints/muvo_base_model/last.ckpt \
   https://github.com/Engibacter/R2LPL/releases/download/v0.1.0-assets/last.ckpt
