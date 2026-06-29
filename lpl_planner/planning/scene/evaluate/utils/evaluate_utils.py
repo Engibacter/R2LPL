@@ -16,8 +16,6 @@ from nuplan.planning.simulation.observation.idm.utils import (
 )
 
 from lpl_planner.planning.scene.trajectory_library import TrajectoryState
-from lpl_planner.planning.planner.int_enum import RoadType
-from lpl_planner.planning.scene.evaluate.utils.control_utils import StateIndex
 
 from scipy.signal import savgol_filter
 

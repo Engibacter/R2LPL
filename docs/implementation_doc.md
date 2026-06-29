@@ -125,7 +125,7 @@ For a minimal reproduction, prepare these files/directories:
 - planner anchor:
   - `results/planner_anchors/planner_anchors_M4096s_T4.0_step20_full.npy`
 - optional warm-start checkpoint:
-  - `results/checkpoints/pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02/last.ckpt`
+  - `results/checkpoints/muvo_base_model/last.ckpt`
 - optional prebuilt MV cache if skipping Stage 1:
   - `results/cache/trainval_caching/`
 - optional expert cache only when using `--expert-mix`:

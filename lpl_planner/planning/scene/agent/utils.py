@@ -1,12 +1,19 @@
 
 import numpy.typing as npt
 import numpy as np
+from enum import IntEnum
 
 from scipy.signal import savgol_filter
 
-from lpl_planner.planning.planner.int_num import BBCoordsIndex
 
+class BBCoordsIndex(IntEnum):
+    """Index mapping for corners and center of bounding boxes."""
 
+    FRONT_LEFT = 0
+    REAR_LEFT = 1
+    REAR_RIGHT = 2
+    FRONT_RIGHT = 3
+    CENTER = 4
 
 def translate_lon_and_lat(
     centers: npt.NDArray,

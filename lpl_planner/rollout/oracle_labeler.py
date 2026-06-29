@@ -15,7 +15,7 @@ from nuplan.planning.utils.multithreading.worker_parallel import SingleMachinePa
 from nuplan.planning.utils.multithreading.worker_pool import WorkerPool
 from nuplan.planning.utils.multithreading.worker_utils import worker_map
 
-from lpl_planner.planning.planner.int_enum import RoadType
+from lpl_planner.planning.planner.utils.int_enum import RoadType
 from lpl_planner.planning.scene.evaluate.scene_scorer import BatchEvaluator
 from lpl_planner.planning.scene.evaluate.simulator import DEFAULT_SIMULATION_DT, BatchSimulator
 from lpl_planner.planning.scene.map.occupancy_map import OccupancyMap

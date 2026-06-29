@@ -15,7 +15,7 @@ from nuplan.planning.utils.multithreading.worker_pool import WorkerPool
 from nuplan.planning.utils.multithreading.worker_utils import chunk_list, worker_map
 from nuplan.planning.metrics.utils.collision_utils import CollisionType
 from nuplan.planning.simulation.observation.idm.utils import  is_agent_behind, is_agent_ahead
-from lpl_planner.planning.planner.int_enum import RoadType
+from lpl_planner.planning.planner.utils.int_enum import RoadType
 
 from shapely import LineString, Polygon, creation, distance
 

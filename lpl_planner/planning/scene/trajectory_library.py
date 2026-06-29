@@ -22,11 +22,11 @@ import glob
 import os
 import gc
 
-hybrid_planner_spec = importlib.util.find_spec("hybrid_planner")
-hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
+lpl_planner_spec = importlib.util.find_spec("lpl_planner")
+lpl_planner_dir = os.path.dirname(lpl_planner_spec.origin)
 # Get relative paths based on package directories
-CONFIG_PATH = os.path.join(hybrid_planner_dir, "config", "training")
-RESULT_PATH = os.path.join(hybrid_planner_dir, "..", "logs")
+CONFIG_PATH = os.path.join(lpl_planner_dir, "config", "training")
+RESULT_PATH = os.path.join(os.environ.get("R2LPL_RESULTS_ROOT", os.path.join(lpl_planner_dir, "..", "results")), "logs")
 CONFIG_NAME = "trajectory_library"
 LIBRARY_PATH = os.path.join(RESULT_PATH, "trajectory_library")
 
@@ -418,4 +418,3 @@ def process(cfg):
 
 if __name__ == "__main__":
     process()
-

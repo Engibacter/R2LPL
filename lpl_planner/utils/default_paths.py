@@ -10,7 +10,7 @@ def get_repo_root() -> Path:
 
 
 def configure_default_paths(create_results: bool = True) -> Dict[str, str]:
-    """Set local open-source defaults without overriding user-provided paths."""
+    """Set R2LPL output/cache defaults without overriding user-provided paths."""
 
     repo_root = Path(os.environ.get("R2LPL_ROOT", get_repo_root())).expanduser().resolve()
     results_root = Path(os.environ.get("R2LPL_RESULTS_ROOT", repo_root / "results")).expanduser()
@@ -19,24 +19,6 @@ def configure_default_paths(create_results: bool = True) -> Dict[str, str]:
     os.environ.setdefault("R2LPL_ROOT", str(repo_root))
     os.environ.setdefault("R2LPL_RESULTS_ROOT", str(results_root))
     os.environ.setdefault("R2LPL_CACHE_ROOT", str(cache_root))
-
-    nuplan_data_root = os.environ.get("NUPLAN_DATA_ROOT")
-    if not nuplan_data_root:
-        candidates = [
-            Path.home() / "nuplan" / "dataset",
-            repo_root / "data" / "nuplan",
-            repo_root / "nuplan" / "dataset",
-        ]
-        for candidate in candidates:
-            if candidate.exists():
-                nuplan_data_root = str(candidate)
-                break
-        else:
-            nuplan_data_root = str(Path.home() / "nuplan" / "dataset")
-        os.environ["NUPLAN_DATA_ROOT"] = nuplan_data_root
-
-    os.environ.setdefault("NUPLAN_MAPS_ROOT", str(Path(os.environ["NUPLAN_DATA_ROOT"]) / "maps"))
-    os.environ.setdefault("NUPLAN_EXP_ROOT", str(results_root / "nuplan_exp"))
 
     if create_results:
         for path in (
@@ -54,7 +36,4 @@ def configure_default_paths(create_results: bool = True) -> Dict[str, str]:
         "R2LPL_ROOT": os.environ["R2LPL_ROOT"],
         "R2LPL_RESULTS_ROOT": os.environ["R2LPL_RESULTS_ROOT"],
         "R2LPL_CACHE_ROOT": os.environ["R2LPL_CACHE_ROOT"],
-        "NUPLAN_DATA_ROOT": os.environ["NUPLAN_DATA_ROOT"],
-        "NUPLAN_MAPS_ROOT": os.environ["NUPLAN_MAPS_ROOT"],
-        "NUPLAN_EXP_ROOT": os.environ["NUPLAN_EXP_ROOT"],
     }

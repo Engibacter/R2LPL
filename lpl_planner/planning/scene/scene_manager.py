@@ -16,11 +16,10 @@ from nuplan.common.actor_state.tracked_objects_types import TrackedObjectType
 from nuplan.planning.scenario_builder.abstract_scenario import AbstractScenario
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
 
-from lpl_planner.planning.planner.bicycle_model import SingleTrackBicycle
 from lpl_planner.planning.scene.agent.agent_manager_toycase import AgentManager
 from lpl_planner.planning.scene.map.lane_map_toycase import LaneMap
 from lpl_planner.planning.scene.map.occupancy_map import OccupancyMap
-from lpl_planner.planning.planner.bicycle_model import STATEINDEX, ACTIONINDEX
+from lpl_planner.planning.scene.utils.scene_index import STATEINDEX, ACTIONINDEX
 from lpl_planner.planning.scene.utils.simulator import Simulator
 from lpl_planner.planning.scene.map.map_utils.roi_segement import ROIMap
 from lpl_planner.planning.scene.scene_feature.features import SceneFeature, AgentPrediction
@@ -89,13 +88,8 @@ class SceneManager:
         self.current_iteration = 0
 
         self.wheel_base = 2.8
-
-        if use_dynamics:
-            self.dynamics = SingleTrackBicycle(self.wheel_base, 
-                                            dt=self.time_step,
-                                            tensor_args=tensor_args)
-        else:
-            self.dynamics = None
+        
+        self.dynamics = None
             
         self.agent_manager = AgentManager(predicton_step=planning_step+30,
                                           use_local_coords=use_local_coordinate,
@@ -566,9 +560,6 @@ class SceneManager:
         self.start_time = scenario.start_time.time_s
         self.scenario = scenario
         self.wheel_base = vehicle_parameter.wheel_base
-        
-        if use_vehicle_dynamics:
-            self.dynamics = SingleTrackBicycle(self.wheel_base, dt=self.time_step,tensor_args=self.tensor_args)
 
         
         # always update map first before agent manager

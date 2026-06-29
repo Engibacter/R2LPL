@@ -30,7 +30,7 @@ worker:
   threads_per_node: ${worker_threads_per_node}
 
 # Output
-rollout_ckpt_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02/last.ckpt
+rollout_ckpt_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/muvo_base_model/last.ckpt
 rollout_package_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/rollout/${job_name}/rollout_packages # One package per rollout scenario.
 rollout_cl_cache_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/rollout/${job_name}/rollout_cl_cache # CL-readable cache root.
 rollout_debug_dir: ${rollout_cl_cache_dir}/_debug

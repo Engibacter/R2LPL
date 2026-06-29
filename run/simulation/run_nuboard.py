@@ -29,11 +29,11 @@ configure_default_paths()
 set_default_path()
 
 nuplan_spec = importlib.util.find_spec("nuplan")
-hybrid_planner_spec = importlib.util.find_spec("hybrid_planner")
+lpl_planner_spec = importlib.util.find_spec("lpl_planner")
 
 nuplan_dir = os.path.dirname(nuplan_spec.origin) 
-hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
-CONFIG_PATH = os.path.join(hybrid_planner_dir, "config/nuboard")
+lpl_planner_dir = os.path.dirname(lpl_planner_spec.origin)
+CONFIG_PATH = os.path.join(lpl_planner_dir, "config/nuboard")
 CONFIG_NAME = 'default_nuboard'
 
 

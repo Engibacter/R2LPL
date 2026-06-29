@@ -19,7 +19,7 @@ HAUSDORFF_WEIGHT=${HAUSDORFF_WEIGHT:-0.1}  # weight for hausdorff distance in sc
 USE_ANCHOR_VELOCITY=${USE_ANCHOR_VELOCITY:-false}  # whether to use anchor velocity in scoring
 
 
-PLANNER=${PLANNER:-muvo_abstract_planner_v4_noap}
+PLANNER=${PLANNER:-muvo_abstract_planner}
 USE_EVAL=${USE_EVAL:-false}  # whether to use trajectory evaluator to evaluate the trajectories
 NUM_SAMPLES=${NUM_SAMPLES:-32}  # number of trajectory samples to generate
 NUM_GPU=${NUM_GPU:-0.03}  # number of GPU to allocate per simulation
@@ -52,7 +52,7 @@ MAX_SPEED_DIFF=${MAX_SPEED_DIFF:-20} # maximum speed difference for dynamic scor
 TRAIN_ANCHOR_NUM=${TRAIN_ANCHOR_NUM:-4096}
 TEST_ANCHOR_NUM=${TEST_ANCHOR_NUM:-4096} # number of anchors to sample during testing |512 for t > 2
 
-CKPT=${CKPT:-"pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02_testrl_ft/last.ckpt"}  
+CKPT=${CKPT:-"muvo_base_model/last.ckpt"}  
 
 # CKPT="mv_cl_single_agem_task_mem24000_r005/task_00_single_increment/last.ckpt"  # CL single increment ckpt
 JOB_NAME=${JOB_NAME:-pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02_cl_cyaw_32_noeval/$FILTER}

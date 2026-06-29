@@ -26,7 +26,7 @@ from nuplan.planning.scenario_builder.abstract_scenario import AbstractScenario
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
 from nuplan.planning.simulation.observation.idm.utils import is_agent_behind
 
-from lpl_planner.planning.planner.planner_utils import (
+from lpl_planner.planning.planner.utils.planner_utils import (
     hausdorff_xy,
     local_trajectory_to_abstract_trajectory,
 )

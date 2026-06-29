@@ -1,7 +1,7 @@
 hydra:
   searchpath:
-    - pkg://hybrid_planner.config.common
-    - pkg://hybrid_planner.config.training
+    - pkg://lpl_planner.config.common
+    - pkg://lpl_planner.config.training
     - pkg://nuplan.planning.script.config.training
     - pkg://nuplan.planning.script.config.common
     - pkg://nuplan.planning.script.experiments
@@ -24,7 +24,7 @@ use_device_num: 1
 learning_rate: 8e-5
 warmup_steps: 0
 check_invalid_grad: false
-start_model_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02/last.ckpt
+start_model_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/checkpoints/muvo_base_model/last.ckpt
 expand_iteration: false
 max_samples: null
 disable_checkpointing: false

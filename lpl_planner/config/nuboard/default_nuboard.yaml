@@ -5,7 +5,7 @@ hydra:
   searchpath:                                                   # Only <exp_dir> in these paths are discoverable
     - pkg://nuplan.planning.script.config.common
     - pkg://nuplan.planning.script.experiments                  # Put experiments configs in script/experiments/<exp_dir>
-    - pkg://hybrid_planner.config.common
+    - pkg://lpl_planner.config.common
 
 defaults:
   - default_common

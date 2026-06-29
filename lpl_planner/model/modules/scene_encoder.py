@@ -13,7 +13,7 @@ from lpl_planner.planning.scene.scene_feature.features import (SceneFeature,
                                                                   EgoFeature,
                                                                   RouteFeature
                                                                   )
-from lpl_planner.planning.planner.int_enum import RoadType
+from lpl_planner.planning.planner.utils.int_enum import RoadType
 LOGIT_CLAMP = 30.0
 logger = logging.getLogger(__name__)
 

@@ -1,37 +1,11 @@
-import os
 from pathlib import Path
 
 from setuptools import setup, find_packages
 
-# Change directory to allow installation from anywhere
-script_folder = os.path.dirname(os.path.realpath(__file__))
-os.chdir(script_folder)
+repo_root = Path(__file__).resolve().parent
 
-with open("README.md", "r") as fh:
+with (repo_root / "README.md").open("r", encoding="utf-8") as fh:
     long_description = fh.read()
-
-repo_root = Path(script_folder).resolve()
-results_root = Path(os.environ.get("R2LPL_RESULTS_ROOT", repo_root / "results")).expanduser()
-cache_root = Path(os.environ.get("R2LPL_CACHE_ROOT", results_root / "cache")).expanduser()
-nuplan_data_root = Path(os.environ.get("NUPLAN_DATA_ROOT", Path.home() / "nuplan" / "dataset")).expanduser()
-
-os.environ.setdefault("R2LPL_ROOT", str(repo_root))
-os.environ.setdefault("R2LPL_RESULTS_ROOT", str(results_root))
-os.environ.setdefault("R2LPL_CACHE_ROOT", str(cache_root))
-os.environ.setdefault("NUPLAN_DATA_ROOT", str(nuplan_data_root))
-os.environ.setdefault("NUPLAN_MAPS_ROOT", str(nuplan_data_root / "maps"))
-os.environ.setdefault("NUPLAN_EXP_ROOT", str(results_root / "nuplan_exp"))
-
-for path in (
-    results_root,
-    cache_root,
-    results_root / "checkpoints",
-    results_root / "planner_anchors",
-    results_root / "rollout",
-    results_root / "rollout_data",
-    results_root / "logs",
-):
-    path.mkdir(parents=True, exist_ok=True)
 
 setup(
     name="R2LPL",
@@ -44,6 +18,10 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent"
         ],
-    packages=find_packages(script_folder, exclude=['*test']),
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    packages=find_packages(exclude=['*test']),
     package_dir={"": "."},
+    include_package_data=True,
+    package_data={"lpl_planner": ["config/**/*.yaml"]},
     )

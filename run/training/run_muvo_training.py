@@ -30,11 +30,11 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 nuplan_spec = importlib.util.find_spec("nuplan")
-hybrid_planner_spec = importlib.util.find_spec("hybrid_planner")
+lpl_planner_spec = importlib.util.find_spec("lpl_planner")
 nuplan_dir = os.path.dirname(nuplan_spec.origin) 
-hybrid_planner_dir = os.path.dirname(hybrid_planner_spec.origin)
+lpl_planner_dir = os.path.dirname(lpl_planner_spec.origin)
 
-CONFIG_PATH = os.path.join(hybrid_planner_dir, "config/training")
+CONFIG_PATH = os.path.join(lpl_planner_dir, "config/training")
 CONFIG_NAME = "custom_mv_training"
 
 def _find_resume_ckpt(ckpt_dir: str) -> Optional[str]:

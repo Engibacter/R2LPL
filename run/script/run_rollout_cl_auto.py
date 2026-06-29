@@ -3,55 +3,39 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import os
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+from typing import Any, Dict, List, Optional
 
 from lpl_planner.utils.default_paths import configure_default_paths
 
 DEFAULT_PATHS = configure_default_paths()
+DEFAULT_REPO_ROOT = Path(DEFAULT_PATHS["R2LPL_ROOT"])
 DEFAULT_RESULTS_ROOT = Path(DEFAULT_PATHS["R2LPL_RESULTS_ROOT"])
 DEFAULT_CACHE_ROOT = Path(DEFAULT_PATHS["R2LPL_CACHE_ROOT"])
-DEFAULT_WORKSPACE_ROOT = Path(DEFAULT_PATHS["R2LPL_ROOT"])
 DEFAULT_PRETRAINED_CKPT = str(
     DEFAULT_RESULTS_ROOT
     / "checkpoints"
-    / "pm_muvo_v4_t4_4096_full_noap_h4s_30_lw_anchor_score_softce02"
+    / "muvo_base_model"
     / "last.ckpt"
 )
 DEFAULT_EXPERT_CACHE = str(DEFAULT_CACHE_ROOT / "cl_expert_caching")
+DEFAULT_PLANNER_ANCHOR = str(DEFAULT_RESULTS_ROOT / "planner_anchors" / "planner_anchors_M4096s_T4.0_step20_full.npy")
 
 
-def _run_command(command: List[str], dry_run: bool = False, env: Optional[Dict[str, str]] = None) -> None:
+def _run_command(command: List[str], dry_run: bool = False) -> None:
     printable = " ".join(command)
     print(f"\n[rollout-cl-auto] {printable}", flush=True)
-    if env:
-        preview_keys = [
-            "CKPT_PATH",
-            "ANCHOR_ROOT",
-            "FILTER",
-            "JOB_NAME",
-            "WORKER",
-            "WORKER_THREADS_PER_NODE",
-            "REPLAY_IMAGE_SIZE_PX",
-            "SIM_OUTPUT_DIR",
-            "VIDEO_SAVE_DIR",
-        ]
-        preview = " ".join(f"{key}={env[key]}" for key in preview_keys if key in env)
-        if preview:
-            print(f"[rollout-cl-auto-env] {preview}", flush=True)
     if dry_run:
         return
-    merged_env = os.environ.copy()
-    if env:
-        merged_env.update(env)
-    subprocess.run(command, check=True, env=merged_env)
+    subprocess.run(command, check=True)
+
+
+def _bool_override(value: bool) -> str:
+    return str(value).lower()
 
 
 def _find_round_checkpoint(checkpoint_root: Path, job_name: str, task_index: int) -> Path:
@@ -110,7 +94,7 @@ def _build_rollout_command(
 ) -> List[str]:
     command = [
         python_executable,
-        "run/data_cache/run_rollout_cl_data_generation.py",
+        str(DEFAULT_REPO_ROOT / "run/data_cache/run_rollout_cl_data_generation.py"),
         f"job_name={job_name}",
         f"scenario_filter={scenario_filter}",
         f"scenario_builder={args.scenario_builder}",
@@ -165,7 +149,7 @@ def _build_cl_command(
     partition_strategy = "rollout_bucket" if use_sar else "scene_type"
     command = [
         python_executable,
-        "run/training/run_rollout_cl_training.py",
+        str(DEFAULT_REPO_ROOT / "run/training/run_rollout_cl_training.py"),
         f"job_name={job_name}",
         f"start_model_path={current_ckpt}",
         f"checkpoint_root={checkpoint_root}",
@@ -203,12 +187,13 @@ def _build_cl_command(
 
 
 def _build_sim_command(
+    python_executable: str,
     ckpt_path: Path,
     round_root: Path,
     job_name: str,
     scenario_filter: str,
     args: argparse.Namespace,
-) -> Tuple[List[str], Dict[str, str]]:
+) -> List[str]:
     sim_filter = str(args.sim_scenario_filter or scenario_filter)
     use_side_results = args.sim_scenario_filter is not None and sim_filter != str(scenario_filter)
     sim_result_root = (
@@ -219,33 +204,156 @@ def _build_sim_command(
     sim_logs_dir = sim_result_root / "simulation_logs"
     sim_videos_dir = sim_result_root / "simulation_videos"
     sim_output_dir = sim_logs_dir / str(args.sim_challenge)
-    anchor_root = Path(
-        os.environ.get(
-            "R2LPL_RESULTS_ROOT",
-            str(Path(args.workspace_root).expanduser().resolve() / "results"),
-        )
-    ) / "planner_anchors"
-    env = {
-        "RESULTS_DIR": str(round_root),
-        "ANCHOR_ROOT": str(anchor_root),
-        "LOG_ROOT": str(sim_logs_dir),
-        "VIDEO_SAVE_DIR": str(sim_videos_dir),
-        "SIM_OUTPUT_DIR": str(sim_output_dir),
-        "CKPT_PATH": str(ckpt_path),
-        "FILTER": sim_filter,
-        "JOB_NAME": str(job_name),
-        "BUILDER": str(args.sim_scenario_builder or args.scenario_builder),
-        "WORKER": str(args.sim_worker),
-        "WORKER_THREADS_PER_NODE": str(args.sim_worker_threads_per_node),
-        "CHALLENGE": str(args.sim_challenge),
-        "NUM_GPU": str(args.sim_gpus_per_worker),
-        "NUM_CPU": str(args.sim_cpus_per_worker),
-        "SAVE_REPLAY": str(args.sim_save_replay).lower(),
-        "REPLAY_IMAGE_SIZE_PX": str(args.sim_replay_image_size_px),
-        "SAVE_NUBOARD_DATA": str(args.sim_save_nuboard_data).lower(),
-    }
-    env.update(dict(item.split("=", 1) for item in args.sim_env if "=" in item))
-    return ["bash", "run/script/run_muvo_planner_ray.sh"], env
+    command = [
+        python_executable,
+        str(DEFAULT_REPO_ROOT / "run/simulation/run_simulation_ray.py"),
+        f"+simulation={args.sim_challenge}",
+        "ego_controller/tracker=pplqr_tracker",
+        f"planner={args.sim_planner}",
+        f"scenario_builder={args.sim_scenario_builder or args.scenario_builder}",
+        f"scenario_filter={sim_filter}",
+        f"worker={args.sim_worker}",
+        f"worker.threads_per_node={args.sim_worker_threads_per_node}",
+        "verbose=true",
+        "experiment_uid=",
+        f"output_dir={sim_output_dir}",
+        f"number_of_gpus_allocated_per_simulation={args.sim_gpus_per_worker}",
+        f"number_of_cpus_allocated_per_simulation={args.sim_cpus_per_worker}",
+        f"planner.muvo_planner.save_replay={_bool_override(args.sim_save_replay)}",
+        f"planner.muvo_planner.ckpt_path={ckpt_path}",
+        f"planner.muvo_planner.video_dir={sim_videos_dir}",
+        f"planner.muvo_planner.replay_image_size_px={args.sim_replay_image_size_px}",
+        f"planner.muvo_planner.num_samples={args.sim_num_samples}",
+        f"planner.muvo_planner.top_k={args.sim_top_k}",
+        f"planner.muvo_planner.top_p={args.sim_top_p}",
+        f"planner.muvo_planner.device={args.sim_device}",
+        f"planner.muvo_planner.model.planner_anchor_path={args.planner_anchor_path}",
+        f"planner.muvo_planner.model.train_anchor_num={args.train_anchor_num}",
+        f"planner.muvo_planner.model.test_anchor_num={args.test_anchor_num}",
+        f"planner.muvo_planner.model.score_chunk_size={args.score_chunk_size}",
+    ]
+    command.extend(args.sim_overrides)
+    return command
+
+
+def _convert_aggregator_parquet_to_csv(sim_output_dir: Path) -> None:
+    aggregator_dir = sim_output_dir / "aggregator_metric"
+    if not aggregator_dir.exists():
+        return
+    try:
+        import pandas as pd
+    except Exception as exc:
+        print(f"[post] skip parquet->csv conversion: {exc}", file=sys.stderr)
+        return
+
+    for parquet_path in sorted(aggregator_dir.glob("*.parquet")):
+        csv_path = parquet_path.with_suffix(".csv")
+        df = pd.read_parquet(parquet_path)
+        df.to_csv(csv_path, index=False)
+        print(f"[post] wrote {csv_path}", flush=True)
+
+
+def _rename_replay_videos_with_scores(sim_output_dir: Path, video_dir: Path) -> None:
+    aggregator_dir = sim_output_dir / "aggregator_metric"
+    if not aggregator_dir.exists() or not video_dir.exists():
+        return
+    try:
+        import pandas as pd
+    except Exception as exc:
+        print(f"[post] skip video rename: {exc}", file=sys.stderr)
+        return
+
+    metric_files = sorted(aggregator_dir.glob("*.csv"), key=lambda path: path.stat().st_mtime)
+    if not metric_files:
+        metric_files = sorted(aggregator_dir.glob("*.parquet"), key=lambda path: path.stat().st_mtime)
+    if not metric_files:
+        return
+
+    metric_path = metric_files[-1]
+    df = pd.read_csv(metric_path) if metric_path.suffix == ".csv" else pd.read_parquet(metric_path)
+    required_cols = {"scenario", "log_name", "score"}
+    if not required_cols.issubset(df.columns):
+        print(f"[post] skip video rename: missing columns in {metric_path}", file=sys.stderr)
+        return
+
+    score_map = {}
+    for row in df.itertuples(index=False):
+        scenario = str(getattr(row, "scenario", ""))
+        log_name = str(getattr(row, "log_name", ""))
+        score = getattr(row, "score", None)
+        if not scenario or not log_name or pd.isna(score):
+            continue
+        score_int = int(round(max(0.0, min(1.0, float(score))) * 100.0))
+        score_map[(log_name, scenario)] = f"{score_int:03d}"
+
+    renamed = 0
+    for video_path in sorted(video_dir.rglob("*.mp4")):
+        stem = re.sub(r"_\d{3}$", "", video_path.stem)
+        matched_score = None
+        for (log_name, scenario), score_suffix in score_map.items():
+            prefix = f"{log_name}_{scenario}"
+            if stem == prefix or stem.startswith(prefix + "_"):
+                matched_score = score_suffix
+                break
+        if matched_score is None:
+            continue
+
+        new_path = video_path.with_name(f"{stem}_{matched_score}{video_path.suffix}")
+        if new_path == video_path:
+            continue
+        if new_path.exists():
+            new_path.unlink()
+        video_path.rename(new_path)
+        renamed += 1
+
+    print(f"[post] renamed {renamed} video files with score suffixes", flush=True)
+
+
+def _prune_non_aggregator_artifacts(sim_output_dir: Path) -> None:
+    aggregator = sim_output_dir / "aggregator_metric"
+    if not sim_output_dir.exists() or not aggregator.exists():
+        return
+
+    for child in list(sim_output_dir.iterdir()):
+        if child.name == "aggregator_metric":
+            continue
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+    print(f"[post] pruned non-aggregator artifacts under {sim_output_dir}", flush=True)
+
+
+def _postprocess_simulation_outputs(round_root: Path, scenario_filter: str, args: argparse.Namespace) -> None:
+    sim_filter = str(args.sim_scenario_filter or scenario_filter)
+    use_side_results = args.sim_scenario_filter is not None and sim_filter != str(scenario_filter)
+    sim_result_root = (
+        round_root / "side_results" / f"{args.sim_challenge}_{sim_filter}"
+        if use_side_results
+        else round_root
+    )
+    sim_output_dir = sim_result_root / "simulation_logs" / str(args.sim_challenge)
+    sim_videos_dir = sim_result_root / "simulation_videos"
+
+    _convert_aggregator_parquet_to_csv(sim_output_dir)
+    if args.sim_save_replay:
+        _rename_replay_videos_with_scores(sim_output_dir, sim_videos_dir)
+    if not args.sim_save_nuboard_data:
+        _prune_non_aggregator_artifacts(sim_output_dir)
+
+
+def _prepare_simulation_dirs(round_root: Path, scenario_filter: str, args: argparse.Namespace) -> None:
+    sim_filter = str(args.sim_scenario_filter or scenario_filter)
+    use_side_results = args.sim_scenario_filter is not None and sim_filter != str(scenario_filter)
+    sim_result_root = (
+        round_root / "side_results" / f"{args.sim_challenge}_{sim_filter}"
+        if use_side_results
+        else round_root
+    )
+    (sim_result_root / "simulation_logs").mkdir(parents=True, exist_ok=True)
+    if args.sim_save_replay:
+        (sim_result_root / "simulation_videos").mkdir(parents=True, exist_ok=True)
 
 
 def _simulation_logs_root(round_root: Path, scenario_filter: str, sim_challenge: str, sim_scenario_filter: Optional[str]) -> Path:
@@ -407,8 +515,8 @@ def main() -> None:
     parser.add_argument("--scenario-builder", type=str, default="nuplan_test", help="Hydra scenario_builder config name and output directory name.")
     parser.add_argument("--method", type=str, default="DERPPSAR", help="FT, DERPP, or DERPPSAR. Default output root is ${scenario_filter}_${method}.")
     parser.add_argument("--python-executable", type=str, default=sys.executable)
-    parser.add_argument("--workspace-root", type=str, default=str(DEFAULT_WORKSPACE_ROOT))
     parser.add_argument("--initial-ckpt", type=str, default=DEFAULT_PRETRAINED_CKPT)
+    parser.add_argument("--planner-anchor-path", type=str, default=DEFAULT_PLANNER_ANCHOR)
     parser.add_argument("--expert-cache-path", type=str, default=DEFAULT_EXPERT_CACHE)
     parser.add_argument("--base-output-root", type=str, default=None)
     parser.add_argument(
@@ -466,15 +574,23 @@ def main() -> None:
 
     parser.add_argument("--sim-scenario-filter", type=str, default=None, help="Scenario filter for simulation. Defaults to --scenario-filter.")
     parser.add_argument("--sim-scenario-builder", type=str, default=None, help="Scenario builder for simulation. Defaults to --scenario-builder.")
+    parser.add_argument("--sim-planner", type=str, default="muvo_abstract_planner")
     parser.add_argument("--sim-worker", type=str, default="custom_ray_distributed")
     parser.add_argument("--sim-worker-threads-per-node", type=str, default="128", help="worker.threads_per_node passed to simulation; use null for all CPUs.")
     parser.add_argument("--sim-challenge", type=str, default="closed_loop_nonreactive_agents")
     parser.add_argument("--sim-gpus-per-worker", type=float, default=0.03)
     parser.add_argument("--sim-cpus-per-worker", type=int, default=1)
-    parser.add_argument("--sim-save-replay", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--sim-replay-image-size-px", type=int, default=768)
+    parser.add_argument("--sim-num-samples", type=int, default=32)
+    parser.add_argument("--sim-top-k", type=float, default=0.0)
+    parser.add_argument("--sim-top-p", type=float, default=0.0)
+    parser.add_argument("--sim-device", type=str, default="auto")
+    parser.add_argument("--sim-save-replay", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--sim-replay-image-size-px", type=int, default=2048)
     parser.add_argument("--sim-save-nuboard-data", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--sim-env", nargs="*", default=[], help="Extra KEY=VALUE environment overrides for run_muvo_planner_ray.sh.")
+    parser.add_argument("--train-anchor-num", type=int, default=4096)
+    parser.add_argument("--test-anchor-num", type=int, default=4096)
+    parser.add_argument("--score-chunk-size", type=int, default=512)
+    parser.add_argument("--sim-overrides", nargs="*", default=[], help="Extra Hydra overrides for simulation.")
 
     parser.add_argument("--rollout-overrides", nargs="*", default=[], help="Extra Hydra overrides for rollout generation.")
     parser.add_argument("--cl-overrides", nargs="*", default=[], help="Extra Hydra overrides for rollout CL training.")
@@ -486,10 +602,6 @@ def main() -> None:
         raise ValueError("--resume-from must be in [0, rounds)")
     method_name = _normalize_method(args.method)
 
-    workspace_root = Path(args.workspace_root).expanduser().resolve()
-    os.chdir(workspace_root)
-
-    home = Path(os.environ.get("HOME", str(Path.home()))).expanduser()
     if args.base_output_root is None:
         experiment_dir_name = _format_experiment_dir_name(args.scenario_filter, method_name, args.experiment_suffix)
         base_output_root = DEFAULT_RESULTS_ROOT / "rollout" / experiment_dir_name
@@ -511,14 +623,19 @@ def main() -> None:
                 if args.dry_run
                 else _find_round_checkpoint(checkpoint_root, job_name, iteration)
             )
-            sim_command, sim_env = _build_sim_command(
+            sim_command = _build_sim_command(
+                python_executable=args.python_executable,
                 ckpt_path=ckpt_path,
                 round_root=round_root,
                 job_name=job_name,
                 scenario_filter=args.scenario_filter,
                 args=args,
             )
-            _run_command(sim_command, dry_run=args.dry_run, env=sim_env)
+            if not args.dry_run:
+                _prepare_simulation_dirs(round_root=round_root, scenario_filter=args.scenario_filter, args=args)
+            _run_command(sim_command, dry_run=args.dry_run)
+            if not args.dry_run:
+                _postprocess_simulation_outputs(round_root=round_root, scenario_filter=args.scenario_filter, args=args)
             if not args.dry_run and args.sim_scenario_filter is None:
                 summary_path = _write_round_summary(
                     round_root=round_root,
@@ -587,14 +704,19 @@ def main() -> None:
             bootstrap_manifest = checkpoint_root / job_name / "rollout_continual_manifest.yaml"
 
         if not args.skip_sim:
-            sim_command, sim_env = _build_sim_command(
+            sim_command = _build_sim_command(
+                python_executable=args.python_executable,
                 ckpt_path=current_ckpt,
                 round_root=round_root,
                 job_name=job_name,
                 scenario_filter=args.scenario_filter,
                 args=args,
             )
-            _run_command(sim_command, dry_run=args.dry_run, env=sim_env)
+            if not args.dry_run:
+                _prepare_simulation_dirs(round_root=round_root, scenario_filter=args.scenario_filter, args=args)
+            _run_command(sim_command, dry_run=args.dry_run)
+            if not args.dry_run:
+                _postprocess_simulation_outputs(round_root=round_root, scenario_filter=args.scenario_filter, args=args)
 
         if not args.dry_run and args.sim_scenario_filter is None:
             summary_path = _write_round_summary(

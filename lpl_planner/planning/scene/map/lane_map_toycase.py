@@ -23,7 +23,7 @@ from nuplan.common.maps.maps_datatypes import (
 from lpl_planner.planning.scene.map.occupancy_map import OccupancyMap
 from shapely.geometry import Point, Polygon
 from lpl_planner.planning.scene.map.map_utils.common_utils import normalize_angle, resample_discrete_path, torch_interp1d
-from lpl_planner.planning.planner.int_enum import RoadType
+from lpl_planner.planning.planner.utils.int_enum import RoadType
 from lpl_planner.planning.scene.map.map_utils.roi_segement import ROIMap
 from lpl_planner.planning.scene.map.map_utils.frenet_path import FrenetPath
 from lpl_planner.planning.scene.map.map_utils.dijkstra import Dijkstra

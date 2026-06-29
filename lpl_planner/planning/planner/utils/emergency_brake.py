@@ -15,7 +15,7 @@ from nuplan.planning.simulation.trajectory.interpolated_trajectory import (
 )
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
 
-from lpl_planner.planning.planner.frenet_utils import (
+from lpl_planner.planning.planner.utils.frenet_utils import (
     QuinticPolynomial,
 )
 
