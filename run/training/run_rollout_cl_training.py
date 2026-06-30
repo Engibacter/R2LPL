@@ -150,6 +150,9 @@ def _build_trainer(cfg: DictConfig, task_ckpt_dir: str, disable_checkpointing: b
         )
 
     trainer_kwargs = dict(OmegaConf.to_container(cfg.lightning.trainer.params, resolve=True))
+    if int(trainer_kwargs.get("accumulate_grad_batches", 1) or 1) != 1:
+        logger.warning("MVCL uses manual optimization; overriding accumulate_grad_batches=%s to 1", trainer_kwargs["accumulate_grad_batches"])
+        trainer_kwargs["accumulate_grad_batches"] = 1
     if disable_checkpointing:
         trainer_kwargs["enable_checkpointing"] = False
 

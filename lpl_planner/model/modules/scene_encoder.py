@@ -76,7 +76,11 @@ class SceneStateEncoder(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=unified_dim, nhead=num_heads, batch_first=True
         )
-        self.fusion = nn.TransformerEncoder(encoder_layer, num_layers=encoder_depth)
+        self.fusion = nn.TransformerEncoder(
+            encoder_layer,
+            num_layers=encoder_depth,
+            enable_nested_tensor=False,
+        )
         self.num_heads = num_heads
 
     def _maybe_debug_tensor(self, x: torch.Tensor, name: str, clamp: Optional[float] = None) -> torch.Tensor:

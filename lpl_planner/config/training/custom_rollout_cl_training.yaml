@@ -121,4 +121,5 @@ lightning:
       devices: ${use_device_num}
       accelerator: gpu
       precision: '32'
+      accumulate_grad_batches: 1 # Manual optimization in MVCLLightningModule is incompatible with Lightning automatic accumulation.
       default_root_dir: ${oc.env:R2LPL_RESULTS_ROOT,results}/logs/${job_name}
