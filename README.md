@@ -5,7 +5,16 @@ Official implementation of **R2LPL**: **R**ollout-**R**etrieval **L**ifelong **P
 **Paper:** [arXiv link](http://arxiv.org/abs/2606.30537).
 
 > [!NOTE]
-> This repository is still under active cleanup. We are organizing the code, checkpoints, and reproduction instructions, and the full reproduction pipeline has not yet been independently verified.
+> This repository is still under active cleanup.
+>
+> Implemented:
+> - [x] Base planner checkpoint and planner anchors release.
+> - [x] Instruction and scripts for reproducing the main experiment result.
+>
+> TODO:
+> - [ ] Fully validate the end-to-end reproduction pipeline on a clean server environment.
+> - [ ] Add detailed caching and training instructions for custom base model training.
+> - [ ] Clean up legacy experimental scripts and internal-only configs.
 
 R2LPL studies how a learned driving policy can improve from its own closed-loop mistakes. Instead of only fine-tuning on expert logs, R2LPL rolls out the current policy, mines recoverable mistake-related states, retrieves feasible corrective targets, and preserves the resulting knowledge through lifelong policy learning.
 
@@ -60,9 +69,9 @@ Detailed Test14-hard metrics across five ROCL updates:
 
 ## Setup
 
-The R2LPL are trained and evaluated on nuPlan, please refer to official repo of [nuplan-devkit](https://github.com/motional/nuplan-devkit) for detailed info on installation and dataset setup.
+R2LPL is trained and evaluated on nuPlan. Please refer to the official [nuplan-devkit](https://github.com/motional/nuplan-devkit) repository for installation and dataset setup details. Make sure the `NUPLAN_DATA_ROOT` and `NUPLAN_MAPS_ROOT` environment variables are set. The expected data layout is `${NUPLAN_DATA_ROOT}/nuplan-v1.1/trainval` and `${NUPLAN_DATA_ROOT}/nuplan-v1.1/test` for nuPlan `.db` files, and `${NUPLAN_MAPS_ROOT}/` for map files.
 
-Once you have downloaded the dataset and set up the nuplan-devkit, you can setup R2LPL with:
+Once you have downloaded the dataset and set up nuplan-devkit, install R2LPL with:
 
 ```bash
 git clone https://github.com/Engibacter/R2LPL.git
@@ -76,7 +85,7 @@ pip install -e .
 
 ## Reproduction Assets
 
-Download the released checkpoint and planner anchors to the default paths expected by the configs:
+Download the released base-planner checkpoint and planner anchors to the default paths if you wish to reproduce the experiments. Otherwise, cache the data and train the base planner manually.
 
 From the repository root:
 
@@ -98,9 +107,94 @@ The main rollout continual-learning script uses these locations by default:
 python run/script/run_rollout_cl_auto.py --dry-run --rounds 1
 ```
 
-## Status
+## Reproduction Instructions
 
-We are preparing the repository for public release. Checkpoints, dataset preparation notes, and full reproduction commands will be updated progressively.
+### Resource Planning
+
+The default script arguments are tuned for our server and may be inappropriate for other machines. Before running the main experiment, choose worker counts from your available CPU threads, system memory, GPU count, and GPU memory.
+
+Let:
+
+- `C` be the number of available CPU threads.
+- `R` be available system memory in GB.
+- `G` be the number of available GPUs.
+- `V` be usable GPU memory per GPU in GB.
+- Use a safety factor `s = 0.8` to leave room for Ray, dataloaders, CUDA context, and OS processes.
+
+Approximate peak usage:
+
+- Rollout worker: `1.5 GB` RAM and `0.7 GB` GPU memory.
+- Simulation worker: `1.5 GB` RAM and `0.7 GB` GPU memory.
+- Oracle worker: `0.9 GB` RAM and no GPU by default.
+
+Each rollout, oracle, and simulation worker uses one CPU by default. The current sub-processes obtain little benefit from allocating more than one CPU per worker, so we recommend keeping the default CPU request and only tuning worker counts and GPU fractions. The simulation run uses one Ray worker pool for both scenario extraction and simulation execution; use `--sim-worker-threads-per-node` as the practical upper bound for simultaneous simulation work.
+
+Choose worker counts no larger than:
+
+```text
+rollout_num_workers <= min(C,
+                           floor(s * R / 1.5),
+                           floor(G / gpus_per_worker),
+                           floor(s * G * V / 0.7))
+
+oracle_num_workers <= min(C,
+                          floor(s * R / 0.9))
+
+sim_worker_threads_per_node <= min(C,
+                                   floor(s * R / 1.5),
+                                   floor(G / sim_gpus_per_worker),
+                                   floor(s * G * V / 0.7))
+```
+
+For GPU rollout and simulation workers, choose a GPU fraction from target worker counts:
+
+```text
+--gpus-per-worker     >= 0.7 / V
+--gpus-per-worker     <= G / rollout_num_workers
+--sim-gpus-per-worker >= 0.7 / V
+--sim-gpus-per-worker <= G / sim_worker_threads_per_node
+```
+
+In practice, first select `--rollout-num-workers` and `--sim-worker-threads-per-node` from the upper-bound formulas above, then set:
+
+```text
+--gpus-per-worker ~= max(0.7 / V, G / rollout_num_workers)
+--sim-gpus-per-worker ~= max(0.7 / V, G / sim_worker_threads_per_node)
+```
+
+This intentionally reserves enough fractional GPU resource so Ray does not overpack more workers than the expected memory budget. If you observe CUDA OOM, lower `--rollout-num-workers`/`--sim-worker-threads-per-node`, increase `--gpus-per-worker` / `--sim-gpus-per-worker`.
+
+### Main Experimental Results
+
+To reproduce the main experimental results, choose an appropriate worker configuration and specify the scenario filter and scenario builder for the target benchmark:
+
+```bash
+cd /path/to/R2LPL
+
+python run/script/run_rollout_cl_auto.py \
+  --rounds 5 \
+  --scenario-filter test14-hard \
+  --scenario-builder nuplan_test \
+  --rollout-num-workers 32 \
+  --oracle-num-workers 48 \
+  --sim-worker-threads-per-node 32 \
+  --gpus-per-worker 0.0625 \
+  --sim-gpus-per-worker 0.0625
+```
+
+If you want to use a scenario filter such as `val14` that is split from trainval data, use `--scenario-builder nuplan_trainval` instead. To resume from a previous round, use `--resume-from X`; R2LPL will resume from the checkpoint and cache generated by round `X`.
+
+> [!IMPORTANT]
+> nuBoard is not supported by the default reproduction command because R2LPL removes detailed nuPlan simulation logs after each simulation and keeps only the aggregated metrics and replay videos. To inspect results with nuBoard, first rerun simulation with `--sim-save-nuboard-data`. This is not recommended for large runs because nuBoard logs require approximately `0.12 GB` of storage per scenario per rollout.
+>
+> Once nuBoard logs are saved, launch nuBoard from the corresponding simulation log path:
+>
+> ```bash
+> python run/simulation/run_nuboard.py \
+>   scenario_builder=nuplan_test \
+>   simulation_path=results/rollout/test14-hard_DERPPSAR/rollout_muvo_00/simulation_logs/closed_loop_nonreactive_agents \
+>   port_number=5006
+> ```
 
 ## License
 

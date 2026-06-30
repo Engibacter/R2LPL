@@ -104,7 +104,9 @@ def _build_rollout_command(
         f"num_workers={args.rollout_num_workers}",
         f"oracle_num_workers={args.oracle_num_workers}",
         f"gpus_per_worker={args.gpus_per_worker}",
+        f"cpus_per_worker={args.cpus_per_worker}",
         f"oracle_gpus_per_worker={args.oracle_gpus_per_worker}",
+        f"oracle_cpus_per_worker={args.oracle_cpus_per_worker}",
         f"max_rollout_scenarios={args.max_rollout_scenarios}",
         f"debug_rollout_cache={str(args.debug_rollout_cache).lower()}",
     ]
@@ -539,7 +541,9 @@ def main() -> None:
     parser.add_argument("--rollout-worker-threads-per-node", type=str, default="128", help="Hydra worker.threads_per_node for rollout scenario extraction; use null for all CPUs.")
     parser.add_argument("--oracle-num-workers", type=int, default=192)
     parser.add_argument("--gpus-per-worker", type=float, default=0.03)
+    parser.add_argument("--cpus-per-worker", type=float, default=1.0)
     parser.add_argument("--oracle-gpus-per-worker", type=float, default=0.0)
+    parser.add_argument("--oracle-cpus-per-worker", type=float, default=1.0)
     parser.add_argument("--max-rollout-scenarios", type=str, default="null")
     parser.add_argument("--debug-rollout-cache", action="store_true")
     parser.add_argument("--road", action="store_true", help="Use RoaD-style rollout-as-demonstration cache generation.")
