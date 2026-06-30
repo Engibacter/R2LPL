@@ -2,7 +2,7 @@
 
 Official implementation of **R2LPL**: **R**ollout-**R**etrieval **L**ifelong **P**olicy **L**earning for autonomous driving.
 
-**Paper:** arXiv link coming soon.
+**Paper:** [arXiv link](http://arxiv.org/abs/2606.30537).
 
 > [!NOTE]
 > This repository is still under active cleanup. We are organizing the code, checkpoints, and reproduction instructions, and the full reproduction pipeline has not yet been independently verified.
