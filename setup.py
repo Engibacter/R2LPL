@@ -12,10 +12,12 @@ setup(
     version="0.0.1",
     author="Gong Cheng",
     author_email="chenggong@bit.edu.cn",
-    description="a testing package for hybrind decision combining mpc and learning",
+    description="Rollout-Retrieval Lifelong Policy Learning for autonomous driving",
+    url="https://github.com/Engibacter/R2LPL",
+    license="Apache-2.0",
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent"
         ],
     long_description=long_description,
@@ -24,4 +26,5 @@ setup(
     package_dir={"": "."},
     include_package_data=True,
     package_data={"lpl_planner": ["config/**/*.yaml"]},
+    python_requires=">=3.9",
     )
