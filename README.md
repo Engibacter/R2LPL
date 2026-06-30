@@ -83,6 +83,8 @@ From the repository root:
 ```bash
 cd /path/to/R2LPL
 
+mkdir -p results/checkpoints/muvo_base_model results/planner_anchors
+
 wget -O results/checkpoints/muvo_base_model/last.ckpt \
   https://github.com/Engibacter/R2LPL/releases/download/v0.1.0-assets/last.ckpt
 
