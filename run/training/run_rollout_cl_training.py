@@ -413,11 +413,14 @@ def _build_expert_dataset_and_lookup(cfg: DictConfig) -> Tuple[List[MVDataset], 
         return [], {}
     cache_path = getattr(expert_cfg, "cache_path", None)
     if cache_path in {None, "", "None"}:
-        return [], {}
+        raise ValueError("expert_mix.enabled=true requires expert_mix.cache_path to be set.")
+    cache_root = Path(str(cache_path)).expanduser()
+    if not cache_root.exists():
+        raise FileNotFoundError(f"expert_mix.cache_path does not exist: {cache_root}")
 
     expert_dataset = MVDataset(
         log_names=None,
-        **_expert_dataset_kwargs(cfg, Path(str(cache_path)).expanduser()),
+        **_expert_dataset_kwargs(cfg, cache_root),
     )
     expert_lookup: Dict[Tuple[str, Optional[str], str], str] = {}
     for token in expert_dataset.tokens:

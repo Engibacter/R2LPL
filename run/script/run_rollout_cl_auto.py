@@ -15,14 +15,12 @@ from lpl_planner.utils.default_paths import configure_default_paths
 DEFAULT_PATHS = configure_default_paths()
 DEFAULT_REPO_ROOT = Path(DEFAULT_PATHS["R2LPL_ROOT"])
 DEFAULT_RESULTS_ROOT = Path(DEFAULT_PATHS["R2LPL_RESULTS_ROOT"])
-DEFAULT_CACHE_ROOT = Path(DEFAULT_PATHS["R2LPL_CACHE_ROOT"])
 DEFAULT_PRETRAINED_CKPT = str(
     DEFAULT_RESULTS_ROOT
     / "checkpoints"
     / "muvo_base_model"
     / "last.ckpt"
 )
-DEFAULT_EXPERT_CACHE = str(DEFAULT_CACHE_ROOT / "cl_expert_caching")
 DEFAULT_PLANNER_ANCHOR = str(DEFAULT_RESULTS_ROOT / "planner_anchors" / "planner_anchors_M4096s_T4.0_step20_full.npy")
 
 
@@ -517,7 +515,7 @@ def main() -> None:
     parser.add_argument("--python-executable", type=str, default=sys.executable)
     parser.add_argument("--initial-ckpt", type=str, default=DEFAULT_PRETRAINED_CKPT)
     parser.add_argument("--planner-anchor-path", type=str, default=DEFAULT_PLANNER_ANCHOR)
-    parser.add_argument("--expert-cache-path", type=str, default=DEFAULT_EXPERT_CACHE)
+    parser.add_argument("--expert-cache-path", type=str, default=None, help="Required when --expert-mix is enabled.")
     parser.add_argument("--base-output-root", type=str, default=None)
     parser.add_argument(
         "--experiment-suffix",

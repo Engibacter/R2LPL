@@ -43,7 +43,7 @@ rollout:
 
 expert_mix:
   enabled: false # Adds same-scenario original expert cache as a separate supervised loader.
-  cache_path: ${oc.env:R2LPL_CACHE_ROOT,results/cache}/cl_expert_caching
+  cache_path: null # Required only when expert_mix.enabled=true.
   expand_iteration: true # For run_data_caching_trainval.py split_iteration=true caches.
   max_cache_samples: null
   sample_basis: max # current_rollout, expert_pool, or max.
