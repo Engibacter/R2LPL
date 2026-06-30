@@ -11,6 +11,7 @@ Official implementation of **R2LPL**: **R**ollout-**R**etrieval **L**ifelong **P
 > - [x] Clean up legacy experimental scripts and internal-only configs.
 > - [x] Base planner checkpoint and planner anchors release.
 > - [x] Instruction and scripts for reproducing the main experiment result.
+> 
 > TODO:
 > - [ ] Instruction for reproducing the ablation experiment result. 
 > - [ ] Add detailed caching and training instructions for custom base model training.
