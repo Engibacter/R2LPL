@@ -43,7 +43,7 @@ from lpl_planner.planning.scene.scene_feature.features import (
     Trajectory,
 )
 from lpl_planner.planning.scene.scene_manager import SceneManager
-from lpl_planner.rollout.oracle_labeler import (
+from lpl_planner.rollout.retrieval_labeler import (
     _build_dense_anchor_scores,
     _build_drivable_area_map,
     _prepend_current_state,
@@ -567,12 +567,12 @@ class RolloutCLScenarioWorker:
         self.disagreement_forward_progress_gap_m = float(getattr(cfg, "disagreement_forward_progress_gap_m", 2.0))
         self.disagreement_lag_progress_gap_m = float(getattr(cfg, "disagreement_lag_progress_gap_m", 3.0))
         self.disagreement_moving_speed_mps = float(getattr(cfg, "disagreement_moving_speed_mps", 1.0))
-        self.oracle_prefilter_topk = max(int(getattr(cfg, "oracle_prefilter_topk", 1024)), 1)
-        self.oracle_replay_topk = max(int(getattr(cfg, "oracle_replay_topk", 16)), 1)
+        self.retrieval_prefilter_topk = max(int(getattr(cfg, "retrieval_prefilter_topk", 1024)), 1)
+        self.retrieval_replay_topk = max(int(getattr(cfg, "retrieval_replay_topk", 16)), 1)
         self.road_model_score_weight = float(getattr(cfg, "road_model_score_weight", 0.35))
         self.road_expert_score_weight = float(getattr(cfg, "road_expert_score_weight", 0.65))
-        self.oracle_score_min = float(getattr(cfg, "oracle_score_min", 0.15))
-        self.oracle_fill_margin = float(getattr(cfg, "oracle_fill_margin", 1.0))
+        self.retrieval_score_min = float(getattr(cfg, "retrieval_score_min", 0.15))
+        self.retrieval_fill_margin = float(getattr(cfg, "retrieval_fill_margin", 1.0))
         self.force_stop_anchor = bool(getattr(cfg, "force_stop_anchor", True))
         self.stop_anchor_endpoint_distance_m = float(getattr(cfg, "stop_anchor_endpoint_distance_m", 0.75))
         self.stop_anchor_mean_speed_mps = float(getattr(cfg, "stop_anchor_mean_speed_mps", 0.3))
@@ -583,8 +583,8 @@ class RolloutCLScenarioWorker:
         self.near_log_expert_min = float(getattr(cfg, "near_log_expert_min", 0.75))
         self.recoverable_xy_m = float(getattr(cfg, "recoverable_xy_m", 5.0))
         self.recoverable_yaw_rad = float(getattr(cfg, "recoverable_yaw_rad", np.deg2rad(45.0)))
-        self.max_ref_distance_m = float(getattr(cfg, "oracle_max_ref_distance_m", 6.0))
-        self.max_heading_error_rad = float(getattr(cfg, "oracle_max_heading_error_rad", np.deg2rad(60.0)))
+        self.max_ref_distance_m = float(getattr(cfg, "retrieval_max_ref_distance_m", 6.0))
+        self.max_heading_error_rad = float(getattr(cfg, "retrieval_max_heading_error_rad", np.deg2rad(60.0)))
         self.anchor_indice_name = str(getattr(cfg, "anchor_indice_name", "anchor_indice.gz"))
         self.anchor_score_name = str(getattr(cfg, "anchor_score_name", "anchor_scores.gz"))
         self.replay_target_name = str(getattr(cfg, "replay_target_name", "replay_planner_targets.gz"))
@@ -614,9 +614,9 @@ class RolloutCLScenarioWorker:
             return np.asarray(planner_anchor, dtype=np.float32)
         actor_anchor = getattr(self.actor, "planner_anchor", None) if self.actor is not None else None
         if actor_anchor is None:
-            anchor_path = getattr(self.cfg, "oracle_planner_anchor_path", None) or getattr(self.cfg, "planner_anchor_path", None)
+            anchor_path = getattr(self.cfg, "retrieval_planner_anchor_path", None) or getattr(self.cfg, "planner_anchor_path", None)
             if anchor_path in {None, "", "None"}:
-                raise AttributeError("planner_anchor is required from model or oracle_planner_anchor_path")
+                raise AttributeError("planner_anchor is required from model or retrieval_planner_anchor_path")
             return np.load(str(anchor_path), mmap_mode="r")
         return actor_anchor.detach().cpu().numpy().astype(np.float32, copy=False) if torch.is_tensor(actor_anchor) else np.asarray(actor_anchor, dtype=np.float32)
 
@@ -838,7 +838,7 @@ class RolloutCLScenarioWorker:
                     candidate_reasons.append("high_risk_context")
                 if bool(record.get("is_model_expert_disagreement", False)):
                     candidate_reasons.append("model_expert_disagreement")
-            record["oracle_candidate_reasons"] = candidate_reasons
+            record["retrieval_candidate_reasons"] = candidate_reasons
 
         package = {
             "version": "rollout_cl_package_v1",
@@ -912,7 +912,7 @@ class RolloutCLScenarioWorker:
             planner_anchor=self.planner_anchor,
             ref_path=ref_path,
             drivable_area_map=drivable_area_map,
-            topk=self.oracle_prefilter_topk,
+            topk=self.retrieval_prefilter_topk,
             max_ref_distance_m=self.max_ref_distance_m,
             max_heading_error_rad=self.max_heading_error_rad,
         )
@@ -939,7 +939,7 @@ class RolloutCLScenarioWorker:
             aggregate_only=False,
         )
         eval_scores = np.asarray(scores["aggregate_scores"], dtype=np.float32)
-        if eval_scores.size == 0 or float(np.max(eval_scores)) <= self.oracle_score_min:
+        if eval_scores.size == 0 or float(np.max(eval_scores)) <= self.retrieval_score_min:
             return None
         valid_eval_mask = np.isfinite(eval_scores) & (eval_scores > 0.0)
         if not valid_eval_mask.any():
@@ -970,12 +970,12 @@ class RolloutCLScenarioWorker:
             anchor_num=int(self.planner_anchor.shape[0]),
             sampled_indices=selected_indices,
             sampled_scores=final_scores,
-            fill_margin=self.oracle_fill_margin,
+            fill_margin=self.retrieval_fill_margin,
         )
         replay_candidates = np.flatnonzero(np.isfinite(final_scores) & (final_scores > 0.0))
         if replay_candidates.size == 0:
             replay_candidates = np.asarray([best_local], dtype=np.int64)
-        replay_order = replay_candidates[np.argsort(final_scores[replay_candidates])[::-1][: self.oracle_replay_topk]]
+        replay_order = replay_candidates[np.argsort(final_scores[replay_candidates])[::-1][: self.retrieval_replay_topk]]
         return {
             "iteration": iteration,
             "state_class": state_class,
@@ -996,7 +996,7 @@ class RolloutCLScenarioWorker:
         }
 
     def is_candidate_frame(self, package: Dict[str, Any], frame_record: Dict[str, Any]) -> bool:
-        return len(frame_record.get("oracle_candidate_reasons", []) or []) > 0
+        return len(frame_record.get("retrieval_candidate_reasons", []) or []) > 0
 
     def process_frame(
         self,
@@ -1009,7 +1009,7 @@ class RolloutCLScenarioWorker:
                 "scenario_token": scenario.token,
                 "iteration": int(frame_record.get("iteration", -1)),
                 "kept": 0,
-                "drop_reason": "outside_oracle_candidate",
+                "drop_reason": "outside_retrieval_candidate",
             }
         scene_manager = SceneManager(time_step=float(self.proposal_sampling.interval_length), simluate_expert_trajectory=False, use_ref_path=True)
         result = self._recover_frame_target(scenario, package, frame_record, scene_manager)
@@ -1032,7 +1032,7 @@ class RolloutCLScenarioWorker:
             "state_class": result["state_class"],
             "best_anchor": int(result["best_anchor"]),
             "best_score": float(result["best_score"]),
-            "oracle_candidate_reasons": list(frame_record.get("oracle_candidate_reasons", []) or []),
+            "retrieval_candidate_reasons": list(frame_record.get("retrieval_candidate_reasons", []) or []),
             "min_ttc": float(frame_record.get("min_ttc", np.inf)),
             "disagreement_reason": str(frame_record.get("disagreement_reason", "")),
         }
@@ -1091,9 +1091,9 @@ class RolloutCLScenarioWorker:
             anchor_num=int(self.planner_anchor.shape[0]),
             sampled_indices=sampled_indices,
             sampled_scores=sampled_scores,
-            fill_margin=self.oracle_fill_margin,
+            fill_margin=self.retrieval_fill_margin,
         )
-        replay_order = np.argsort(sampled_scores)[::-1][: self.oracle_replay_topk]
+        replay_order = np.argsort(sampled_scores)[::-1][: self.retrieval_replay_topk]
         return {
             "iteration": iteration,
             "state_class": self._frame_state_class(ego_state, scenario.get_ego_state_at_iteration(iteration)),
@@ -1136,7 +1136,7 @@ class RolloutCLScenarioWorker:
             "state_class": result["state_class"],
             "best_anchor": int(result["best_anchor"]),
             "best_score": float(result["best_score"]),
-            "oracle_candidate_reasons": [],
+            "retrieval_candidate_reasons": [],
             "retrieval_style": "road",
             "min_ttc": float(frame_record.get("min_ttc", np.inf)),
             "disagreement_reason": str(frame_record.get("disagreement_reason", "")),

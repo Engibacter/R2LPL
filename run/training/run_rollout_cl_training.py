@@ -353,11 +353,11 @@ def _build_rollout_priority_context(
             ref = CacheRef(dataset_id=dataset_id, token=token)
             meta = dataset._sample_meta[token]
             state_class = str(metadata.get("state_class", "unknown"))
-            primary_reason = _primary_candidate_reason(metadata.get("oracle_candidate_reasons", []) or [])
+            primary_reason = _primary_candidate_reason(metadata.get("retrieval_candidate_reasons", []) or [])
             partition_map[ref.key] = f"{meta.scene_type or '__unknown__'}|{state_class}|{primary_reason}"
 
             score = base_weight
-            for reason in metadata.get("oracle_candidate_reasons", []) or []:
+            for reason in metadata.get("retrieval_candidate_reasons", []) or []:
                 score += float(reason_weights.get(str(reason), 0.0))
             score += float(state_weights.get(state_class, 0.0))
 

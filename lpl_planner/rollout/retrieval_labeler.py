@@ -92,7 +92,7 @@ def _log_profile_summary(profile_summary: Dict[str, Any]) -> None:
     stage_seconds = profile_summary["stage_seconds"]
     stage_percent = profile_summary["stage_percent"]
     logger.info(
-        "Oracle profiling across %d samples: wall=%.3fs | cumulative_worker_total=%.3fs | load=%.3fs (%.1f%%) | prefilter=%.3fs (%.1f%%) | simulate=%.3fs (%.1f%%) | evaluate=%.3fs (%.1f%%) | write=%.3fs (%.1f%%)",
+        "Retrieval profiling across %d samples: wall=%.3fs | cumulative_worker_total=%.3fs | load=%.3fs (%.1f%%) | prefilter=%.3fs (%.1f%%) | simulate=%.3fs (%.1f%%) | evaluate=%.3fs (%.1f%%) | write=%.3fs (%.1f%%)",
         int(profile_summary["profiled_samples"]),
         float(profile_summary.get("wall_time_seconds", 0.0)),
         float(profile_summary.get("cumulative_worker_time_seconds", stage_seconds["total"])),
@@ -379,7 +379,7 @@ def _load_sample_payload(
     }
 
 
-def _write_oracle_label(
+def _write_retrieval_label(
     payload: Dict[str, Any],
     aggregate_scores: np.ndarray,
     planner_anchor: np.ndarray,
@@ -409,8 +409,8 @@ def _write_oracle_label(
     )
     return {
         "sample_dir": str(sample_dir),
-        "oracle_anchor_index": best_anchor_idx,
-        "oracle_score": float(aggregate_scores[best_local_idx]),
+        "retrieval_anchor_index": best_anchor_idx,
+        "retrieval_score": float(aggregate_scores[best_local_idx]),
         "selected_anchor_count": int(selected_indices.shape[0]),
         "ref_path_selected_count": int(payload.get("ref_path_selected_count", selected_indices.shape[0])),
     }
@@ -481,7 +481,7 @@ def _process_sample_dir(
         profile=sample_profile,
     )
     write_start = perf_counter() if sample_profile is not None else 0.0
-    record = _write_oracle_label(
+    record = _write_retrieval_label(
         payload=payload,
         aggregate_scores=aggregate_scores,
         planner_anchor=planner_anchor,
@@ -499,7 +499,7 @@ def _process_sample_dir(
     return result
 
 
-def _process_oracle_sample_dirs_chunk(args: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _process_retrieval_sample_dirs_chunk(args: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not args:
         return []
 
@@ -578,11 +578,11 @@ def _process_sample_dirs_worker_map(
         }
         for index, sample_dir in enumerate(sample_dirs)
     ]
-    mapped_results = worker_map(worker, _process_oracle_sample_dirs_chunk, indexed_sample_dirs)
+    mapped_results = worker_map(worker, _process_retrieval_sample_dirs_chunk, indexed_sample_dirs)
     return sorted(mapped_results, key=lambda item: int(item["index"]))
 
 
-def generate_oracle_labels_for_sample_dir(
+def generate_retrieval_labels_for_sample_dir(
     sample_dir: Path,
     planner_anchor: np.ndarray,
     proposal_sampling: TrajectorySampling,
@@ -623,7 +623,7 @@ def generate_oracle_labels_for_sample_dir(
     )
 
 
-def generate_oracle_labels_for_rollout_root(
+def generate_retrieval_labels_for_rollout_root(
     root: Path,
     planner_anchor_path: Path,
     worker: Optional[WorkerPool] = None,
@@ -632,9 +632,9 @@ def generate_oracle_labels_for_rollout_root(
     prefilter_topk: int = 1024,
     discount_factor: float = 1.0,
     fill_margin: float = 1.0,
-    anchor_indice_name: str = "anchor_indice_oracle.gz",
-    anchor_score_name: str = "anchor_scores_oracle.gz",
-    summary_name: str = "oracle_generation_summary.json",
+    anchor_indice_name: str = "anchor_indice_retrieval.gz",
+    anchor_score_name: str = "anchor_scores_retrieval.gz",
+    summary_name: str = "retrieval_generation_summary.json",
     overwrite: Optional[bool] = None,
     override: Optional[bool] = None,
     debug: bool = False,
@@ -765,5 +765,5 @@ def generate_oracle_labels_for_rollout_root(
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     if debug:
         _log_profile_summary(profile_summary)
-    logger.info("Generated oracle labels for %d/%d rollout samples under %s", written, total, root)
+    logger.info("Generated retrieval labels for %d/%d rollout samples under %s", written, total, root)
     return summary

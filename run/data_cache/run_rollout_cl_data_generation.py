@@ -92,7 +92,7 @@ def _build_scenarios(cfg: DictConfig, worker: WorkerPool) -> List[AbstractScenar
 
 
 def _load_planner_anchor(cfg: DictConfig) -> Optional[Any]:
-    anchor_path = getattr(cfg, "oracle_planner_anchor_path", None) or getattr(cfg, "planner_anchor_path", None)
+    anchor_path = getattr(cfg, "retrieval_planner_anchor_path", None) or getattr(cfg, "planner_anchor_path", None)
     if anchor_path in {None, "", "None"}:
         return None
     path = Path(str(anchor_path)).expanduser()
@@ -186,7 +186,7 @@ def _build_frame_tasks(package_results: List[Dict[str, Any]], scenarios: List[Ab
         if scenario is None or not package_path:
             continue
         for frame_record in package_result.get("frame_records", []) or []:
-            if frame_record.get("oracle_candidate_reasons"):
+            if frame_record.get("retrieval_candidate_reasons"):
                 tasks.append({"scenario": scenario, "package_path": package_path, "frame_record": frame_record})
     return tasks
 
@@ -238,10 +238,10 @@ def _run_frames_ray(cfg: DictConfig, frame_tasks: List[Dict[str, Any]], planner_
     if owns_ray:
         ray.init(ignore_reinit_error=True)
 
-    worker_count = min(max(int(getattr(cfg, "oracle_num_workers", 0)) or int(getattr(cfg, "num_workers", 1)), 1), len(frame_tasks))
+    worker_count = min(max(int(getattr(cfg, "retrieval_num_workers", 0)) or int(getattr(cfg, "num_workers", 1)), 1), len(frame_tasks))
     WorkerRemote = ray.remote(
-        num_gpus=float(getattr(cfg, "oracle_gpus_per_worker", 0.0)),
-        num_cpus=float(getattr(cfg, "oracle_cpus_per_worker", getattr(cfg, "cpus_per_worker", 1.0))),
+        num_gpus=float(getattr(cfg, "retrieval_gpus_per_worker", 0.0)),
+        num_cpus=float(getattr(cfg, "retrieval_cpus_per_worker", getattr(cfg, "cpus_per_worker", 1.0))),
     )(RolloutCLScenarioWorker)
     workers = [WorkerRemote.remote(cfg, None, planner_anchor, False) for _ in range(worker_count)]
     scenario_refs: Dict[str, Any] = {}
@@ -332,15 +332,15 @@ def _write_summary(cfg: DictConfig, package_results: List[Dict[str, Any]], frame
         if frame_records:
             reason_counts: Dict[str, int] = {}
             for record in frame_records:
-                for reason in record.get("oracle_candidate_reasons", []) or []:
+                for reason in record.get("retrieval_candidate_reasons", []) or []:
                     reason_counts[str(reason)] = reason_counts.get(str(reason), 0) + 1
             summary_result["package_frame_count"] = len(frame_records)
             summary_result["package_action_count"] = len(package.get("action_records", []) or []) if isinstance(package, dict) else int(result.get("frames", 0))
             summary_result["package_ego_state_count"] = ego_vector_count
-            summary_result["oracle_candidate_count"] = sum(1 for record in frame_records if record.get("oracle_candidate_reasons"))
+            summary_result["retrieval_candidate_count"] = sum(1 for record in frame_records if record.get("retrieval_candidate_reasons"))
             summary_result["high_risk_frame_count"] = sum(1 for record in frame_records if record.get("is_high_risk"))
             summary_result["model_expert_disagreement_count"] = sum(1 for record in frame_records if record.get("is_model_expert_disagreement"))
-            summary_result["oracle_candidate_reason_counts"] = reason_counts
+            summary_result["retrieval_candidate_reason_counts"] = reason_counts
         return _json_safe(summary_result)
 
     package_scene_type_counts: Dict[str, int] = {}
@@ -348,7 +348,7 @@ def _write_summary(cfg: DictConfig, package_results: List[Dict[str, Any]], frame
     package_candidate_reason_counts: Dict[str, int] = {}
     package_high_risk_count = 0
     package_disagreement_count = 0
-    package_oracle_candidate_count = 0
+    package_retrieval_candidate_count = 0
     for result in package_results:
         _increment(package_scene_type_counts, result.get("scene_type"))
         _increment(package_failure_counts, result.get("failure_type", result.get("termination_type")))
@@ -356,9 +356,9 @@ def _write_summary(cfg: DictConfig, package_results: List[Dict[str, Any]], frame
         package_high_risk_count += sum(1 for record in frame_records if record.get("is_high_risk"))
         package_disagreement_count += sum(1 for record in frame_records if record.get("is_model_expert_disagreement"))
         for record in frame_records:
-            reasons = record.get("oracle_candidate_reasons", []) or []
+            reasons = record.get("retrieval_candidate_reasons", []) or []
             if reasons:
-                package_oracle_candidate_count += 1
+                package_retrieval_candidate_count += 1
             for reason in reasons:
                 _increment(package_candidate_reason_counts, reason)
 
@@ -394,7 +394,7 @@ def _write_summary(cfg: DictConfig, package_results: List[Dict[str, Any]], frame
             _increment(frame_drop_reason_counts, drop_reason)
             if drop_reason == "unrecoverable":
                 unrecoverable_count += 1
-        for reason in result.get("oracle_candidate_reasons", []) or []:
+        for reason in result.get("retrieval_candidate_reasons", []) or []:
             _increment(frame_candidate_reason_counts, reason)
         disagreement_reason = result.get("disagreement_reason", "")
         if disagreement_reason:
@@ -426,7 +426,7 @@ def _write_summary(cfg: DictConfig, package_results: List[Dict[str, Any]], frame
         "num_errors": summary["num_errors"],
         "package_scene_type_counts": package_scene_type_counts,
         "package_failure_counts": package_failure_counts,
-        "package_oracle_candidate_count": package_oracle_candidate_count,
+        "package_retrieval_candidate_count": package_retrieval_candidate_count,
         "package_high_risk_frame_count": package_high_risk_count,
         "package_model_expert_disagreement_count": package_disagreement_count,
         "package_candidate_reason_counts": package_candidate_reason_counts,
@@ -486,10 +486,10 @@ def main(cfg: DictConfig) -> None:
         len(package_results),
         retrieval_style,
     )
-    oracle_parallel = bool(getattr(cfg, "oracle_parallel", getattr(cfg, "rollout_parallel", True))) and int(
-        getattr(cfg, "oracle_num_workers", 0) or getattr(cfg, "num_workers", 1)
+    retrieval_parallel = bool(getattr(cfg, "retrieval_parallel", getattr(cfg, "rollout_parallel", True))) and int(
+        getattr(cfg, "retrieval_num_workers", 0) or getattr(cfg, "num_workers", 1)
     ) > 1
-    if oracle_parallel:
+    if retrieval_parallel:
         frame_results = _run_frames_ray(cfg, frame_tasks, planner_anchor=None)
     else:
         planner_anchor = _load_planner_anchor(cfg)

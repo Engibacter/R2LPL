@@ -45,7 +45,7 @@ episode_len: null # Deprecated compatibility alias for rollout_max_steps.
 
 # Rollout Workers
 rollout_parallel: true
-num_workers: 96 # Rollout workers; oracle uses this when oracle_num_workers is 0.
+num_workers: 96 # Rollout workers; retrieval uses this when retrieval_num_workers is 0.
 gpus_per_worker: 0.03
 cpus_per_worker: 1
 
@@ -58,7 +58,7 @@ deterministic_first: false
 dt: 0.2 # Fallback planning interval if model.future_sampling is unavailable.
 rollout_dt: 0.1 # Used only for distance_to_failure_s metadata.
 
-# Oracle Candidate Frames
+# Retrieval Candidate Frames
 rollout_retrieval_style: r2lpl # r2lpl | road. road bypasses recoverability retrieval and uses rollout-as-demonstration targets.
 road_frame_stride: 5
 road_max_frames_per_scenario: 30
@@ -78,20 +78,20 @@ disagreement_forward_progress_gap_m: 2.0 # Expert waits but model moves forward.
 disagreement_lag_progress_gap_m: 3.0 # Model lags behind moving expert.
 disagreement_moving_speed_mps: 1.0
 
-# Oracle Workers
-oracle_parallel: true
-oracle_num_workers: 0 # 0 means reuse num_workers.
-oracle_gpus_per_worker: 0.0
-oracle_cpus_per_worker: 1
+# Retrieval Workers
+retrieval_parallel: true
+retrieval_num_workers: 0 # 0 means reuse num_workers.
+retrieval_gpus_per_worker: 0.0
+retrieval_cpus_per_worker: 1
 
-# Oracle Anchor Recovery
-oracle_planner_anchor_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/planner_anchors/planner_anchors_M4096s_T4.0_step20_full.npy
-oracle_prefilter_topk: 1024 # Geometry candidates before simulator/evaluator.
-oracle_replay_topk: 256 # Top anchors saved for replay/distillation.
-oracle_score_min: 0.15 # All anchors <= this means unrecoverable.
-oracle_max_ref_distance_m: 6.0
-oracle_max_heading_error_rad: 1.0471975512
-oracle_fill_margin: 1.0 # Dense score fill margin for non-evaluated anchors.
+# Retrieval Anchor Recovery
+retrieval_planner_anchor_path: ${oc.env:R2LPL_RESULTS_ROOT,results}/planner_anchors/planner_anchors_M4096s_T4.0_step20_full.npy
+retrieval_prefilter_topk: 1024 # Geometry candidates before simulator/evaluator.
+retrieval_replay_topk: 256 # Top anchors saved for replay/distillation.
+retrieval_score_min: 0.15 # All anchors <= this means unrecoverable.
+retrieval_max_ref_distance_m: 6.0
+retrieval_max_heading_error_rad: 1.0471975512
+retrieval_fill_margin: 1.0 # Dense score fill margin for non-evaluated anchors.
 force_stop_anchor: true # Always evaluate the most stop-like anchor.
 stop_anchor_endpoint_distance_m: 0.75
 stop_anchor_mean_speed_mps: 0.3

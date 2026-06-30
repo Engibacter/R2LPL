@@ -125,9 +125,9 @@ Approximate peak usage:
 
 - Rollout worker: `1.5 GB` RAM and `0.7 GB` GPU memory.
 - Simulation worker: `1.5 GB` RAM and `0.7 GB` GPU memory.
-- Oracle worker: `0.9 GB` RAM and no GPU by default.
+- Target-retrieval worker: `0.9 GB` RAM and no GPU by default.
 
-Each rollout, oracle, and simulation worker uses one CPU by default. The current sub-processes obtain little benefit from allocating more than one CPU per worker, so we recommend keeping the default CPU request and only tuning worker counts and GPU fractions. The simulation run uses one Ray worker pool for both scenario extraction and simulation execution; use `--sim-worker-threads-per-node` as the practical upper bound for simultaneous simulation work.
+Each rollout, target-retrieval, and simulation worker uses one CPU by default. The current sub-processes obtain little benefit from allocating more than one CPU per worker, so we recommend keeping the default CPU request and only tuning worker counts and GPU fractions. The simulation run uses one Ray worker pool for both scenario extraction and simulation execution; use `--sim-worker-threads-per-node` as the practical upper bound for simultaneous simulation work.
 
 Choose worker counts no larger than:
 
@@ -137,7 +137,7 @@ rollout_num_workers <= min(C,
                            floor(G / gpus_per_worker),
                            floor(s * G * V / 0.7))
 
-oracle_num_workers <= min(C,
+retrieval_num_workers <= min(C,
                           floor(s * R / 0.9))
 
 sim_worker_threads_per_node <= min(C,
@@ -176,7 +176,7 @@ python run/script/run_rollout_cl_auto.py \
   --scenario-filter test14-hard \
   --scenario-builder nuplan_test \
   --rollout-num-workers 32 \
-  --oracle-num-workers 48 \
+  --retrieval-num-workers 48 \
   --sim-worker-threads-per-node 32 \
   --gpus-per-worker 0.0625 \
   --sim-gpus-per-worker 0.0625
