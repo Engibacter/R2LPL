@@ -2,7 +2,7 @@
 
 Official implementation of **R2LPL**: **R**ollout-**R**etrieval **L**ifelong **P**olicy **L**earning for autonomous driving.
 
-**Paper:** [arXiv link](http://arxiv.org/abs/2606.30537).
+**Paper:** [Learning from Mistakes: Rollout-Retrieval Lifelong Policy Learning for Autonomous Driving](https://arxiv.org/abs/2606.30537).
 
 > [!NOTE]
 > This repository is still under active cleanup.
@@ -195,6 +195,32 @@ If you want to use a scenario filter such as `val14` that is split from trainval
 >   simulation_path=results/rollout/test14-hard_DERPPSAR/rollout_muvo_00/simulation_logs/closed_loop_nonreactive_agents \
 >   port_number=5006
 > ```
+
+### Ablation Experimental Results
+
+> [!NOTE]
+> This section is under construction. The corresponding instructions and scripts are still being validated and cleaned for public release.
+
+### Custom Model Training 
+
+> [!NOTE]
+> This section is under construction. The corresponding instructions and scripts are still being validated and cleaned for public release.
+
+## Citation
+
+If you find this project useful, please consider citing our paper:
+
+```bibtex
+@misc{gong2026r2lpl,
+  title={Learning from Mistakes: Rollout-Retrieval Lifelong Policy Learning for Autonomous Driving},
+  author={Gong, Cheng and Wang, Haoyang and Lu, Chao and Li, Zirui and Gong, Jianwei},
+  year={2026},
+  eprint={2606.30537},
+  archivePrefix={arXiv},
+  primaryClass={cs.RO},
+  url={https://arxiv.org/abs/2606.30537}
+}
+```
 
 ## License
 
