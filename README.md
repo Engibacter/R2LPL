@@ -196,6 +196,30 @@ If you want to use a scenario filter such as `val14` that is split from trainval
 >   port_number=5006
 > ```
 
+To evaluate trained policies under different simulation protocols or scenario filters, use `--sim-only` together with `--sim-challenge`, `--sim-scenario-filter`, and `--sim-scenario-builder`.
+
+For example, to evaluate all generated rounds on the reactive `test14-hard` benchmark:
+
+```bash
+python run/script/run_rollout_cl_auto.py \
+  --rounds 5 \
+  --sim-only \
+  --sim-challenge closed_loop_reactive_agents \
+  --sim-scenario-filter test14-hard \
+  --sim-scenario-builder nuplan_test
+```
+To evaluate a specific round, pass the corresponding job name:
+
+```bash
+python run/script/run_rollout_cl_auto.py \
+  --rounds 5 \
+  --sim-only \
+  --sim-job-name rollout_muvo_04 \
+  --sim-challenge closed_loop_reactive_agents \
+  --sim-scenario-filter test14-hard \
+  --sim-scenario-builder nuplan_test
+```
+
 ### Ablation Experimental Results
 
 > [!NOTE]
