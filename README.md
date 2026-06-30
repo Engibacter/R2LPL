@@ -30,7 +30,7 @@ R2LPL studies how a learned driving policy can improve from its own closed-loop 
 
 ## Main Results
 
-Closed-loop results on nuPlan. NR and R denote non-reactive and reactive simulation protocols.
+Closed-loop results on nuPlan. NR and R denote non-reactive and reactive simulation protocols. **Bold** marks the best score and <u>underline</u> marks the second-best score among the main compared learning-based methods; `R2LPL-ROCL-10-best` is reported as an envelope reference.
 
 | Method | Training paradigm | Val14 NR | Val14 R | Test14-hard NR | Test14-hard R | Test14-random NR | Test14-random R |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -42,10 +42,10 @@ Closed-loop results on nuPlan. NR and R denote non-reactive and reactive simulat
 | [Diffusion Planner](https://github.com/ZhengYinan-AIR/Diffusion-Planner) | Generative IL | 89.87 | 82.80 | 75.99 | 69.22 | 89.19 | 82.93 |
 | [Flow Planner](https://github.com/DiffusionAD/Flow-Planner) | Generative IL | 90.43 | 83.31 | 76.47 | 70.42 | 89.88 | 82.93 |
 | DFP | Generative IL | 90.33 | 79.97 | 76.91 | 63.56 | 90.69 | 81.96 |
-| DFP-FM | Generative IL | **92.68** | 81.30 | 79.43 | 67.94 | 90.62 | 83.59 |
-| [Plan-R1](https://github.com/XiaolongTang23/Plan-R1) | IL + RL alignment | 88.98 | **87.69** | 77.45 | 77.20 | 91.23 | **90.04** |
+| DFP-FM | Generative IL | **92.68** | 81.30 | <u>79.43</u> | 67.94 | 90.62 | 83.59 |
+| [Plan-R1](https://github.com/XiaolongTang23/Plan-R1) | IL + RL alignment | 88.98 | **87.69** | 77.45 | <u>77.20</u> | <u>91.23</u> | **90.04** |
 | R2LPL-base | Imitation learning | 75.39 | 73.87 | 60.67 | 65.25 | 70.74 | 72.96 |
-| **R2LPL-ROCL-5** | **IL + R2LPL** | 91.26 | 85.38 | **83.51** | **78.38** | **92.25** | 87.99 |
+| **R2LPL-ROCL-5** | **IL + R2LPL** | <u>91.26</u> | <u>85.38</u> | **83.51** | **78.38** | **92.25** | <u>87.99</u> |
 | R2LPL-ROCL-10-best | IL + R2LPL envelope | 92.22 | 85.83 | 86.54 | 78.88 | 93.94 | 88.20 |
 
 R2LPL improves the base planner from **60.67/65.25** to **83.51/78.38** on the challenging Test14-hard split under NR/R protocols, without changing the planner architecture or adding deployment-time rule refinement.
