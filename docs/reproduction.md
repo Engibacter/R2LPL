@@ -127,6 +127,8 @@ python run/simulation/run_nuboard.py \
 > [!NOTE]
 > These ablation commands are being cleaned and validated for public release. They document the intended reproduction path and the key Hydra overrides used in the paper experiments.
 
+### Expert-Log Cache Preparation
+
 The ablation experiments that use expert demonstrations first require an expert-log cache. The first step caches the base scene features and expert trajectory logs:
 
 ```bash
@@ -161,6 +163,8 @@ python run/data_cache/run_data_caching_trainval_anchor_score.py \
 ```
 
 `expand_iteration=true` is required here because the expert cache above was generated with `split_iteration=true`. Use `override_anchor_score=true` and/or `override_anchor_indice=true` only when you want to regenerate existing anchor metadata.
+
+### Base + Expert-Log SFT
 
 For `base + expert-log SFT`, fine-tune the base checkpoint directly on the expert cache:
 
@@ -210,6 +214,8 @@ python run/simulation/run_simulation_ray.py \
 
 The other ablations below use `run_rollout_cl_auto.py`, which already runs simulation after each training round unless `--skip-sim` is set.
 
+### Base + RoaD-Style SFT
+
 For `base + RoaD-style SFT`, use rollout-as-demonstration targets and disable continual memory:
 
 ```bash
@@ -228,6 +234,8 @@ python run/script/run_rollout_cl_auto.py \
 
 `--method FT` already sets `continual.memory.capacity=0`; the explicit override above is kept only to make the ablation intent obvious.
 
+### Base + R2 SFT
+
 For `base + R2 SFT`, keep the default R2LPL retrieval-style rollout cache and use FT training:
 
 ```bash
@@ -243,6 +251,8 @@ python run/script/run_rollout_cl_auto.py \
 
 Do not pass `--road` for this ablation; `--road` switches the rollout cache to RoaD-style rollout-as-demonstration targets.
 
+### R2LPL Without Expert Mix
+
 For `R2LPL w/o expert mix`, run the main continual rollout-learning pipeline while explicitly disabling expert-cache mixing:
 
 ```bash
@@ -254,6 +264,8 @@ python run/script/run_rollout_cl_auto.py \
   --no-sim-save-replay \
   --cl-overrides expert_mix.enabled=false expert_mix.loss_weight=0
 ```
+
+### R2LPL With Expert Mix
 
 For `R2LPL w/ expert mix`, pass the expert cache generated above:
 
