@@ -135,7 +135,8 @@ python run/data_cache/run_data_caching_trainval.py \
   scenario_filter=test14-hard \
   split_iteration=true \
   cache.cache_path=results/cache \
-  job_name=test14_hard_expert_cache
+  job_name=test14_hard_expert_cache \
+  worker_threads_per_node=32
 ```
 
 The final cache root is:
@@ -155,7 +156,8 @@ python run/data_cache/run_data_caching_trainval_anchor_score.py \
   expand_iteration=true \
   anchor_indice_strategy=scorer \
   anchor_indice_name=anchor_indice.gz \
-  anchor_score_name=anchor_scores.gz
+  anchor_score_name=anchor_scores.gz \
+  worker_threads_per_node=32
 ```
 
 `expand_iteration=true` is required here because the expert cache above was generated with `split_iteration=true`. Use `override_anchor_score=true` and/or `override_anchor_indice=true` only when you want to regenerate existing anchor metadata.
@@ -271,4 +273,86 @@ When `--expert-mix` is enabled, `--expert-cache-path` is required. The wrapper p
 ## Custom Model Training
 
 > [!NOTE]
-> Under construction. We are validating and cleaning the corresponding data processing, caching, and training instructions for public release.
+> Custom base-model training is more resource intensive than the rollout-learning experiments above. The commands below use conservative public defaults for cache workers; tune batch size, GPU devices, and worker counts for your machine.
+
+First cache the nuPlan trainval features. This follows the official trainval split and keeps one cache entry per scenario:
+
+```bash
+python run/data_cache/run_data_caching_trainval.py \
+  scenario_builder=nuplan_trainval \
+  scenario_filter=training_scenarios_1M \
+  split_iteration=false \
+  cache.cache_path=results/cache \
+  job_name=trainval_caching \
+  worker_threads_per_node=32
+```
+
+The final training cache root is:
+
+```text
+results/cache/trainval_caching
+```
+
+Then append anchor indices and anchor scores:
+
+```bash
+python run/data_cache/run_data_caching_trainval_anchor_score.py \
+  cache.cache_path=results/cache \
+  job_name=trainval_caching \
+  expand_iteration=false \
+  anchor_indice_strategy=scorer \
+  anchor_indice_name=anchor_indice.gz \
+  anchor_score_name=anchor_scores.gz \
+  worker_threads_per_node=32
+```
+
+Train the base model from scratch on this cache:
+
+```bash
+python run/training/run_muvo_training.py \
+  job_name=muvo_base_model \
+  model=muvo_planner \
+  splitter=log_splits \
+  train_data=all \
+  start_model_path=null \
+  pretrained_path=null \
+  cache.cache_path=results/cache/trainval_caching \
+  cache.expand_iteration=false \
+  cache.use_manifest=false \
+  cache.scene_tokens_path=null \
+  cache.use_anchor_indice=true \
+  cache.use_anchor_score=true \
+  cache.anchor_indice_name=anchor_indice.gz \
+  cache.anchor_score_name=anchor_scores.gz \
+  max_epoch=30 \
+  learning_rate=1e-4 \
+  warmup_steps=1000 \
+  use_device_num=[0,1,2,3] \
+  dataloader.params.batch_size=72 \
+  dataset.val_ratio=0.05 \
+  visualize=false \
+  lightning.trainer.params.precision=bf16-mixed \
+  model.intermidiate_dim=256 \
+  model.encoder_depth=4 \
+  model.planning_decoder_depths=8 \
+  model.prediction_decoder_depths=5 \
+  model.future_sampling.num_poses=20 \
+  model.planner_anchor_path=results/planner_anchors/planner_anchors_M4096s_T4.0_step20_full.npy \
+  model.regression_loss_weight=0.0 \
+  model.regression_yaw_loss_weight=0.0 \
+  model.classification_loss_weight=10.0 \
+  model.train_anchor_num=256 \
+  model.test_anchor_num=256 \
+  model.score_chunk_size=512 \
+  model.use_prediction=false \
+  model.prediction_loss_weight=1.0 \
+  model.teacher_anchor_ratio=0.1 \
+  model.teacher_ce_weight=1.0 \
+  model.teacher_ce_label_smoothing=0.2 \
+  model.anchor_score_kl_weight=1.0 \
+  model.anchor_score_neg_loss_weight=1.0 \
+  model.use_anchor_score_kl_loss=true \
+  model.prediction_use_cv_delta=false
+```
+
+The trained checkpoint will be written under `results/checkpoints/muvo_base_model/`. You can then use it as the `--initial-ckpt` for rollout-learning experiments or as `planner.muvo_planner.ckpt_path` for direct simulation.

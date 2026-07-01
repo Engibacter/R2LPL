@@ -11,10 +11,9 @@ Official implementation of **R2LPL**: **R**ollout-**R**etrieval **L**ifelong **P
 > - [x] Clean up legacy experimental scripts and internal-only configs.
 > - [x] Base planner checkpoint and planner anchors release.
 > - [x] Instruction and scripts for reproducing the main experiment result.
+> - [x] Reproduction notes for ablation experiments and custom base-model training.
 > 
 > TODO:
-> - [ ] Instruction for reproducing the ablation experiment result. 
-> - [ ] Add detailed caching and training instructions for custom base model training.
 > - [ ] Fully validate the end-to-end reproduction pipeline on a clean environment.
 
 R2LPL studies how a learned driving policy can improve from its own closed-loop mistakes. Instead of only fine-tuning on expert logs, R2LPL rolls out the current policy, mines recoverable mistake-related states, retrieves feasible corrective targets, and preserves the resulting knowledge through lifelong policy learning.
