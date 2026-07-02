@@ -1,4 +1,3 @@
-from typing import Optional
 import numpy as np
 import numpy.typing as npt
 import shapely.creation as sc
@@ -17,7 +16,6 @@ from nuplan.planning.simulation.observation.idm.utils import (
 
 from lpl_planner.planning.scene.trajectory_library import TrajectoryState
 
-from scipy.signal import savgol_filter
 
 EVAL_UTILS_DTYPE = np.float32
 

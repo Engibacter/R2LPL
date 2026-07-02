@@ -5,13 +5,8 @@ from nuplan.common.actor_state.ego_state import EgoState
 from nuplan.common.actor_state.state_representation import StateSE2, Point2D
 from nuplan.common.maps.abstract_map import AbstractMap
 from nuplan.common.maps.abstract_map_objects import (
-    Intersection,
-    Lane,
     LaneConnector,
-    PolygonMapObject,
-    LaneGraphEdgeMapObject,
     RoadBlockGraphEdgeMapObject,
-    StopLine,
     PolylineMapObject,
 )
 from nuplan.common.maps.maps_datatypes import SemanticMapLayer

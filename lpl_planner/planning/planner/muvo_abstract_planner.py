@@ -1,4 +1,4 @@
-from typing import Optional, List, Type, Dict
+from typing import Optional, List, Type
 import torch
 from torch.serialization import safe_globals
 import numpy as np

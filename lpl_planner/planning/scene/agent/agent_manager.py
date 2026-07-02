@@ -1,26 +1,22 @@
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 import torch
-import math
 
 from scipy.interpolate import interp1d
 
 from nuplan.planning.scenario_builder.abstract_scenario import AbstractScenario
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
-from nuplan.planning.simulation.planner.abstract_planner import PlannerInput
 from nuplan.common.actor_state.ego_state import EgoState
-from nuplan.common.actor_state.agent import Agent
 from nuplan.common.actor_state.tracked_objects import TrackedObject, TrackedObjects
 from nuplan.common.actor_state.tracked_objects_types import TrackedObjectType
-from nuplan.common.maps.maps_datatypes import TrafficLightStatusData, TrafficLightStatusType
+from nuplan.common.maps.maps_datatypes import TrafficLightStatusType
 
-from shapely.geometry import Polygon, LinearRing
+from shapely.geometry import Polygon
 
 from lpl_planner.planning.scene.map.lane_map import LaneMap
 from lpl_planner.planning.scene.map.map_utils.roi_segement import ROIMap
-# from .agent import Agent
 from ..map.occupancy_map import OccupancyMap
-from .utils import state_array_to_box_array, translate_lon_and_lat, process_agent_states
+from .utils import process_agent_states
 import logging
 logger = logging.getLogger(__name__)
 

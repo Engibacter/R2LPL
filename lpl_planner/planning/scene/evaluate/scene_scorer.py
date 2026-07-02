@@ -1,4 +1,3 @@
-import copy
 from typing import List, Tuple, Set, Optional, Dict, Union, Any
 import numpy as np
 import numpy.typing as npt
@@ -12,7 +11,7 @@ from nuplan.common.actor_state.ego_state import EgoState
 from nuplan.common.actor_state.state_representation import StateSE2
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
 from nuplan.planning.utils.multithreading.worker_pool import WorkerPool
-from nuplan.planning.utils.multithreading.worker_utils import chunk_list, worker_map
+from nuplan.planning.utils.multithreading.worker_utils import worker_map
 from nuplan.planning.metrics.utils.collision_utils import CollisionType
 from nuplan.planning.simulation.observation.idm.utils import  is_agent_behind, is_agent_ahead
 from lpl_planner.planning.planner.utils.int_enum import RoadType
@@ -38,7 +37,6 @@ from lpl_planner.planning.scene.evaluate.simulator import (
 )
 from lpl_planner.planning.scene.scene_feature.features import (SceneFeature,
                                                                   AgentPrediction,
-                                                                  Trajectories
                                                                   )
 
 

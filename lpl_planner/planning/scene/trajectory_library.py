@@ -4,8 +4,6 @@ from scipy.stats import norm
 
 from nuplan.common.actor_state.ego_state import EgoState
 from nuplan.planning.utils.multithreading.worker_parallel import SingleMachineParallelExecutor
-from nuplan.planning.scenario_builder.scenario_filter import ScenarioFilter
-from nuplan.planning.scenario_builder.nuplan_db.nuplan_scenario_builder import NuPlanScenarioBuilder
 from nuplan.planning.scenario_builder.abstract_scenario import AbstractScenario
 
 import matplotlib.pyplot as plt
@@ -44,11 +42,6 @@ class TrajectoryState(IntEnum):
     JERK_Y = 10
 
 
-    # Define slices for different parts of the trajectory state
-    # POINT = slice(X, Y + 1)
-    # STATE = slice(X, HEADING + 1)
-    # VELOCITY = slice(VELOCITY_X, VELOCITY_Y + 1)
-    # ACCELERATION = slice(ACCELERATION_X, ACCELERATION_Y + 1)
 
     def size() -> int:
         """
@@ -397,8 +390,6 @@ def process(cfg):
             traj_counter += 1
 
             trajectory = get_trajectory_from_scenario(scenario, run_step=i, time_horizon=time_horizon, time_interval=time_interval)
-
-            # print(f"trajectory.shape: {trajectory.shape}")
 
             trajectories.append(trajectory)
         

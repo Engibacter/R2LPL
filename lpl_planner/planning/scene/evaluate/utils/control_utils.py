@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple
 
 import numpy as np
 import numpy.typing as npt
@@ -7,10 +7,8 @@ from enum import IntEnum
 from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
 
-from nuplan.common.actor_state.ego_state import EgoState
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
-from nuplan.common.actor_state.state_representation import StateSE2, StateVector2D, TimePoint
-from nuplan.planning.metrics.utils.state_extractors import approximate_derivatives
+
 
 CONTROL_DTYPE = np.float32
 

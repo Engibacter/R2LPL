@@ -119,6 +119,8 @@ class PPLQRTracker(AbstractTracker):
         self._discretization_time = discretization_time
         self._tracking_horizon = tracking_horizon
         self._wheel_base = vehicle.wheel_base
+        self._rear_axle_to_center = vehicle.rear_axle_to_center
+        self._max_steering_angle: float = np.pi / 3
 
         # Velocity/Curvature Estimation Parameters
         assert jerk_penalty > 0.0, "The jerk penalty must be positive."
@@ -159,9 +161,22 @@ class PPLQRTracker(AbstractTracker):
                 derivatives=np.ones(self._tracking_horizon, dtype=np.float64) * accel_cmd,
                 discretization_time=self._discretization_time,
             )[: self._tracking_horizon]
-            steering_rate_cmd = self._lateral_lqr_controller(
-                initial_lateral_state_vector, velocity_profile, curvature_profile
+
+            steering_rate_cmd = self._lateral_pure_persuit_controller(
+                initial_state, trajectory
             )
+            # steering_rate_cmd = None
+            if steering_rate_cmd is None:
+                steering_rate_cmd = self._lateral_lqr_controller(
+                    initial_lateral_state_vector, velocity_profile, curvature_profile
+                )
+        
+        steering_rate_cmd, accel_cmd = self.refine_command(
+            steering_rate_cmd,
+            accel_cmd,
+            initial_state)
+        
+
 
         return DynamicCarState.build_from_rear_axle(
             rear_axle_to_center_dist=initial_state.car_footprint.rear_axle_to_center_dist,
@@ -355,6 +370,130 @@ class PPLQRTracker(AbstractTracker):
         )
 
         return float(steering_rate_cmd)
+    
+    def _lateral_pure_persuit_controller(
+        self,
+        initial_state: EgoState,
+        trajectory: AbstractTrajectory,
+    ) -> float:
+        """
+        This lateral controller determines a steering_rate input to minimize lateral errors at a lookahead time.
+        It requires a velocity sequence as a parameter to ensure linear time-varying lateral dynamics.
+        :param initial_lateral_state_vector: The current lateral state of ego.
+        :param velocity_profile: [m/s] The velocity over the entire self._tracking_horizon-step lookahead.
+        :param curvature_profile: [rad] The curvature over the entire self._tracking_horizon-step lookahead..
+        :return: Steering rate [rad/s] command based on LQR.
+        """
+        # Pure Pursuit controller implementation
+        k_slow = 0.2  # look forward gain for slow speed
+        k_fast = 0.2  # look forward gain for fast speed
+        k = k_slow if initial_state.dynamic_car_state.rear_axle_velocity_2d.x < 10.0 else k_fast
+        Lfc = 2.5  # look-ahead distance
+        L = self._wheel_base  # wheel base of vehicle
+
+        v = initial_state.dynamic_car_state.rear_axle_velocity_2d.x
+        initial_ego_x = initial_state.rear_axle.x
+        initial_ego_y = initial_state.rear_axle.y
+        initial_ego_heading = initial_state.rear_axle.heading
+
+        if v < 0.1:
+            return 0.0
+        
+        # Compute look-ahead point on the reference path (arc-length based)
+        times_s, poses = get_interpolated_reference_trajectory_poses(trajectory, self._discretization_time)
+        poses_diff = np.diff(poses, axis=0)
+        xy_displacements = poses_diff[:, :2]
+        s_step = np.linalg.norm(xy_displacements, axis=1)
+        s_profile = np.insert(np.cumsum(s_step), 0, 0.0)
+        look_ahead_distance = k * v + Lfc
+        if s_profile[-1] < look_ahead_distance:
+            look_ahead_idx = len(s_profile) - 1
+        else:
+            look_ahead_idx = np.searchsorted(s_profile, look_ahead_distance)
+        look_ahead_point = poses[look_ahead_idx]
+
+        # Vector from rear axle to look-ahead point in world frame
+        dx = look_ahead_point[0] - initial_ego_x
+        dy = look_ahead_point[1] - initial_ego_y
+
+        # Express the vector in the vehicle (rear-axle) frame
+        # xL: forward component, yL: left lateral component
+        cos_h = np.cos(initial_ego_heading)
+        sin_h = np.sin(initial_ego_heading)
+        xL = dx * cos_h + dy * sin_h
+        yL = -dx * sin_h + dy * cos_h
+
+        # Geometric Pure Pursuit
+        # Use the true line-of-sight distance Ld to the look-ahead point to avoid angle compression in large turns
+        Ld = float(np.hypot(xL, yL))
+        if Ld <= 2.5:
+            return None  # skip PP controller for very close look-ahead points
+
+        # Bearing angle to look-ahead point in vehicle frame
+        alpha = np.arctan2(yL, xL)
+
+        # Compute steering command using bicycle geometry
+        delta = np.arctan2(2.0 * L * np.sin(alpha), Ld)
+
+        # Steering rate based on current steering angle with yaw-rate/yaw-accel constraints
+        steering_angle = float(initial_state.tire_steering_angle)
+        steering_angle = np.clip(steering_angle, -np.pi / 3, np.pi / 3)
+
+        dt = self._discretization_time
+        # Base unconstrained steering rate
+        base_rate = (delta - steering_angle) / dt
+
+        # Constraints
+        max_abs_yaw_rate = 0.95       # [rad/s]
+        max_abs_yaw_accel = 1.85      # [rad/s^2]
+
+        # Initialize allowed rate interval
+        rate_min = -np.inf
+        rate_max = np.inf
+
+        # Yaw rate constraint maps to a bound on next steering angle (through r = v/L * tan(delta))
+        v_safe = max(v, 1e-3)
+        if v_safe > 1e-3:
+            delta_lim = float(np.arctan(max_abs_yaw_rate * L / v_safe))
+        else:
+            # At near standstill, yaw-rate bound from steering is ineffective; fall back to physical steer limit
+            delta_lim = np.pi / 3
+
+        delta_next_min = -delta_lim
+        delta_next_max =  delta_lim
+        # Convert to steering rate bounds over one step
+        rr_min = (delta_next_min - steering_angle) / dt
+        rr_max = (delta_next_max - steering_angle) / dt
+        rate_min = max(rate_min, min(rr_min, rr_max))
+        rate_max = min(rate_max, max(rr_min, rr_max))
+
+        # Yaw acceleration constraint: r_dot = (v/L) * sec^2(delta) * delta_rate + (a/L) * tan(delta)
+        # Solve for delta_rate bounds: delta_rate in [( -rddot_max - (a/L)tan(delta) ) / ((v/L)sec^2(delta)),
+        #                                           ( +rddot_max - (a/L)tan(delta) ) / ((v/L)sec^2(delta))]
+        a_long = 0.0
+        try:
+            a_long = float(initial_state.dynamic_car_state.rear_axle_acceleration_2d.x)
+        except Exception:
+            a_long = 0.0
+
+        if v_safe > 1e-3:
+            cos_sa = np.cos(steering_angle)
+            cos2 = cos_sa * cos_sa
+            # Prevent division blow-up near 90 deg (should be clipped by steer limits anyway)
+            sec2 = 1.0 / max(cos2, 1e-3)
+            denom = (v_safe / L) * sec2
+            bias = (a_long / L) * np.tan(steering_angle)
+            rr2_min = (-max_abs_yaw_accel - bias) / denom
+            rr2_max = ( max_abs_yaw_accel - bias) / denom
+            rate_min = max(rate_min, min(rr2_min, rr2_max))
+            rate_max = min(rate_max, max(rr2_min, rr2_max))
+
+        # Final clipped steering rate command
+        steering_rate_cmd = float(np.clip(base_rate, rate_min, rate_max))
+
+        # return float(steering_rate_cmd)
+        return float(steering_rate_cmd) # without constraints
+    
 
     @staticmethod
     def _solve_one_step_lqr(
@@ -389,3 +528,64 @@ class PPLQRTracker(AbstractTracker):
 
         lqr_input = -np.linalg.inv(B.T @ Q @ B + R) @ B.T @ Q @ state_error_zero_input
         return lqr_input
+
+    def refine_command(
+            self, 
+            steering_rate_cmd: float,
+            accel_cmd: float,
+            initial_states: EgoState,
+            ) -> Tuple[float, float]:
+        """
+        This method can be used to apply any post-processing to the raw LQR commands (e.g. rate limits).
+        :param command_states: The raw command states from LQR.
+        :return: The refined command states after post-processing.
+        """
+
+        steering_angle_time_constant = 0.05
+        acceleration_time_constant = 0.2
+        k_acceleration = 2.0
+        k_steering_rate = 1.1
+
+        initial_steering_angle = initial_states.tire_steering_angle
+        initial_acceleration = initial_states.dynamic_car_state.rear_axle_acceleration_2d.x
+        initial_velocity = initial_states.dynamic_car_state.rear_axle_velocity_2d.x
+        initial_yaw_rate = initial_states.dynamic_car_state.angular_velocity
+        initial_angular_acceleration = initial_states.dynamic_car_state.angular_acceleration
+
+        # 1. limite steering rate to avoid excessive yaw rate
+        max_abs_yaw_rate = 0.95  # rad/s
+        max_abs_yaw_accel = 1.85  # rad/s^2
+
+        next_max_abs_yaw_rate = np.clip(
+            np.abs(initial_yaw_rate) + max_abs_yaw_accel * self._discretization_time,
+            0.0,
+            max_abs_yaw_rate,
+        )
+        next_max_steering_angle = np.arctan(
+            next_max_abs_yaw_rate * self._wheel_base / np.maximum(initial_velocity, 1e-3)
+        )
+        
+        next_steering_angle = initial_steering_angle + steering_rate_cmd * self._discretization_time
+        steering_angle_cmd = np.clip(next_steering_angle, -next_max_steering_angle, next_max_steering_angle)
+        steering_angle_gained = initial_steering_angle + k_steering_rate * (steering_angle_cmd - initial_steering_angle)
+        steering_angle_gained = np.clip(steering_angle_gained, -self._max_steering_angle, self._max_steering_angle)
+        steering_angle_cmd = (
+            self._discretization_time / (self._discretization_time + steering_angle_time_constant) * (steering_angle_gained - initial_steering_angle) 
+            + initial_steering_angle
+        )
+
+
+        # 2. limit acceleration to avoid excessive speed changes
+        accel_cmd = np.clip(accel_cmd, 
+                            -3.0, 
+                            1.5) # shift accel limits based on current lateral dynamics to avoid excessive total longitudinal accel
+
+        
+
+        # 3. control gain for correction
+        steering_angle_gained = initial_steering_angle + k_steering_rate * (steering_angle_cmd - initial_steering_angle)
+        steering_rate_cmd = (steering_angle_gained - initial_steering_angle) / self._discretization_time
+        accel_cmd = initial_acceleration + k_acceleration * (accel_cmd - initial_acceleration)
+
+        return steering_rate_cmd, accel_cmd
+    
