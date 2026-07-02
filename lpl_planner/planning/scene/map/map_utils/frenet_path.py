@@ -7,18 +7,19 @@ class FrenetPath:
                  lookahead_distance: float = 200,
                  lookback_distance: float = -100,
                  angle_penalty: float = 2.0):
-        """初始化FrenetPath对象，预计算参考路径的相关数据以加速转换
-        ref_path: shape (N, 4) 包含x,y,theta,s坐标
+        """Precompute reference-path data for fast Cartesian/Frenet conversion.
+
+        ref_path has shape [N, >=5] with x, y, theta, s, speed_limit columns.
         """
         start_idx = np.argmin(np.linalg.norm(ref_path[:, :2], axis=1))
-        ref_path[:, 3] = ref_path[:, 3] - ref_path[start_idx, 3] # 重新计算s坐标，使起点为0
+        ref_path[:, 3] = ref_path[:, 3] - ref_path[start_idx, 3]
         if lookahead_distance is not None and ref_path[-1, 3] > lookahead_distance:
             idx = np.searchsorted(ref_path[:, 3], lookahead_distance)
             ref_path = ref_path[:idx + 1]
         if lookback_distance is not None and ref_path[0, 3] < lookback_distance:
             idx = np.searchsorted(ref_path[:, 3], lookback_distance)
             ref_path = ref_path[idx:]
-        # 基于s进行等间距插值 ds=0.1，得到均匀的(x,y,theta,s)
+        # Resample uniformly in arc length for stable nearest-neighbor queries.
         s_orig = ref_path[:, 3]
         if len(s_orig) >= 2:
             ds = 0.1
@@ -30,20 +31,19 @@ class FrenetPath:
             theta_uniform = (theta_uniform + np.pi) % (2 * np.pi) - np.pi
             speed_limit = np.interp(s_uniform, s_orig, ref_path[:, 4]) 
             ref_path = np.column_stack((x_uniform, y_uniform, theta_uniform, s_uniform, speed_limit))
-        self.ref_path = np.array(ref_path[..., :2])  # 仅保留x,y坐标
-        self.ref_theta = ref_path[..., 2]  # 切线角度
-        self.cumulative_s = ref_path[..., 3]  # s坐标（弧长）
-        self.speed_limit = ref_path[..., 4]  # 速度限制
+        self.ref_path = np.array(ref_path[..., :2])
+        self.ref_theta = ref_path[..., 2]
+        self.cumulative_s = ref_path[..., 3]
+        self.speed_limit = ref_path[..., 4]
         self.kd_tree = KDTree(np.concatenate((ref_path[..., :2], 
                                               np.cos(ref_path[..., 2:3]) * angle_penalty,
-                                              np.sin(ref_path[..., 2:3]) * angle_penalty), axis=-1))  # 用于快速最近点查询
+                                              np.sin(ref_path[..., 2:3]) * angle_penalty), axis=-1))
         self.angle_penalty = angle_penalty
     def cartesian_to_frenet(self, points: np.ndarray):
-        """使用预计算数据的快速转换
-        point: shape (..., 2) 包含x,y坐标
-        返回: sd: shape (..., 2) 包含s,d坐标
+        """Convert Cartesian poses to Frenet coordinates using precomputed data.
+
+        points has shape [..., >=3] with x, y, yaw. Returns [..., 2] as s, d.
         """
-        # 找到最近点（可以使用KD树加速）
         expanded_points = np.concatenate((points[..., :2], 
                                           np.cos(points[..., 2:3]) * self.angle_penalty,
                                           np.sin(points[..., 2:3]) * self.angle_penalty), axis=-1)
@@ -61,7 +61,7 @@ class FrenetPath:
         return sd
     
     def frenet_to_cartesian(self, sd: np.ndarray, with_yaw: bool = False):
-        """使用预计算数据的快速转换"""
+        """Convert Frenet coordinates back to Cartesian coordinates."""
 
         if sd.shape[-1] < 2:
             raise ValueError(f"sd must have (s,d). Got shape={sd.shape}")
@@ -73,14 +73,13 @@ class FrenetPath:
         s = np.maximum.accumulate(s)
         d = sd[..., 1]
 
-        # 找到s对应的索引
         right = np.searchsorted(self.cumulative_s, s, side="left")
         right = np.clip(right, 1, len(self.cumulative_s) - 1)
         left = right - 1
 
         s_left = self.cumulative_s[left]
         s_right = self.cumulative_s[right]
-        w = (s - s_left) / np.maximum(s_right - s_left, 1e-6)  # 线性插值权重 (M,)
+        w = (s - s_left) / np.maximum(s_right - s_left, 1e-6)
         
         p_left = self.ref_path[left]
         p_right = self.ref_path[right]
@@ -103,7 +102,7 @@ class FrenetPath:
         return np.stack((x, y), axis=-1)
     
     def get_speed_limit(self, s_start: float, s_end: float) -> float:
-        """获取s_start到s_end区间的最高速度限制"""
+        """Return the minimum speed limit over an s interval."""
         s_start = np.clip(s_start, self.cumulative_s[0], self.cumulative_s[-1])
         s_end = np.clip(s_end, self.cumulative_s[0], self.cumulative_s[-1])
         if np.abs(s_end - s_start) < 1e-1:
@@ -115,7 +114,7 @@ class FrenetPath:
         return np.min(self.speed_limit[idx_start:idx_end])
     
     def get_speed_limit_at_s(self, s: float) -> float:
-        """获取s位置的速度限制"""
+        """Return the speed limit at a single s position."""
         s = np.clip(s, self.cumulative_s[0], self.cumulative_s[-1])
         idx = np.searchsorted(self.cumulative_s, s, side="left")
         return self.speed_limit[idx]

@@ -16,7 +16,7 @@ from nuplan.common.maps.maps_datatypes import TrafficLightStatusData, TrafficLig
 
 from shapely.geometry import Polygon, LinearRing
 
-from lpl_planner.planning.scene.map.lane_map_toycase import LaneMap
+from lpl_planner.planning.scene.map.lane_map import LaneMap
 from lpl_planner.planning.scene.map.map_utils.roi_segement import ROIMap
 # from .agent import Agent
 from ..map.occupancy_map import OccupancyMap

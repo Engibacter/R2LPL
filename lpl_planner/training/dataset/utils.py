@@ -220,21 +220,6 @@ def draw_model_in_out(
                     valid_future = future[valid_idx]
                     axes.plot(valid_future[:, 0], valid_future[:, 1], color='orange', linestyle='-', linewidth=2, alpha=0.6)
 
-    # 绘制参考路径
-    # if scene_feature.route_feature is None:
-    #     ref_path = ref_path_feature if type(ref_path_feature) is np.ndarray else np.array(ref_path_feature)  # [T, (x,y,yaw,left_bound,right_bound)]
-    #     lane_bound = ref_path[:,3:5]
-    #     left_bound = np.expand_dims(lane_bound[:,0],axis=1)*np.vstack((np.cos(ref_path[:,2]+np.pi/2),np.sin(ref_path[:,2]+np.pi/2))).T + ref_path[:,:2]
-    #     right_bound = np.expand_dims(lane_bound[:,1],axis=1)*np.vstack((np.cos(ref_path[:,2]+np.pi/2),np.sin(ref_path[:,2]+np.pi/2))).T + ref_path[:,:2]
-    #     axes.plot(ref_path[:, 0], ref_path[:, 1], color='green', linestyle='-', linewidth=2, alpha=0.5)
-    #     # print(f'left_bound.shape: {left_bound.shape}')
-    #     # 绘制参考路径的左右边界多边形
-    #     ref_path_poly = np.vstack([left_bound, right_bound[::-1]])
-    #     axes.fill(ref_path_poly[:, 0], ref_path_poly[:, 1], color='green', alpha=0.2)
-    #     # ax.fill_between(ref_path[:, 0], left_bound, right_bound, color='green', alpha=0.2, label='Reference Path Boundary')
-    # else:
-    #     ref_path = ref_path_feature if type(ref_path_feature) is np.ndarray else np.array(ref_path_feature)  # [T, (x,y,yaw,left_bound,right_bound)]
-    #     axes.plot(ref_path[:, 0], ref_path[:, 1], color='green', linestyle='-', linewidth=2, alpha=0.5)
         
     # 绘制所有候选轨迹
     if all_trajectories is not None and all_trajectory_scores is not None:

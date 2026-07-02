@@ -99,16 +99,13 @@ class AgentPrediction(AbstractModelFeature):
             agent_future_state = self.agent_future_state[b]      # [N,H,D]
             agent_future_mask = self.agent_future_mask[b]        # [N,H]
 
-            # 每个代理是否有任何有效未来
             any_valid = agent_future_mask.any(dim=1)             # [N]
 
             if any_valid.any():
-                # 找到最后一个有效代理索引，截断其后全部 padding
                 last_valid_idx = int(torch.nonzero(any_valid, as_tuple=False)[-1].item())
                 kept_state = agent_future_state[:last_valid_idx + 1]
                 kept_mask = agent_future_mask[:last_valid_idx + 1]
             else:
-                # 全部无效 -> 返回空张量
                 kept_state = agent_future_state[:0]
                 kept_mask = agent_future_mask[:0]
 

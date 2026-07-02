@@ -22,7 +22,7 @@ from nuplan.common.maps.maps_datatypes import (
 
 from lpl_planner.planning.scene.map.occupancy_map import OccupancyMap
 from shapely.geometry import Point, Polygon
-from lpl_planner.planning.scene.map.map_utils.common_utils import normalize_angle, resample_discrete_path, torch_interp1d
+from lpl_planner.planning.scene.map.map_utils.common_utils import normalize_angle, resample_discrete_path
 from lpl_planner.planning.planner.utils.int_enum import RoadType
 from lpl_planner.planning.scene.map.map_utils.roi_segement import ROIMap
 from lpl_planner.planning.scene.map.map_utils.frenet_path import FrenetPath
@@ -233,10 +233,7 @@ class LaneMap(ABC):
             ego_lane = self.get_starting_lane(ego_state)
             self.ego_lane = ego_lane
             ego_roadblock_ids = ego_lane.get_roadblock_id()
-            # print(f"Ego lane in route : {ego_roadblock_ids in self._route_roadblock_dict.keys()}")
-            # print(f"ego roadblock id: {ego_lane.get_roadblock_id()}")
             if ego_roadblock_ids not in self._route_roadblock_dict.keys():
-                # logger.warning(f"Ego lane roadblock id {ego_roadblock_ids} not in route roadblock dict keys.")
                 ego_route = self.get_free_drive_route_plan(ego_lane, ego_state, scenario=scenario)
             else:
                 ego_route = self.get_route_plan_by_search(ego_lane, search_depth=20)
@@ -260,12 +257,10 @@ class LaneMap(ABC):
         ego_lane = self.get_starting_lane(ego_state)
 
         # skip route search if still in still same lane form lasted searched lane
-        # if ((ego_lane != self.ego_lane) or self.ego_route is None) :
         if self.ego_route is None :
             self.ego_lane = ego_lane
             ego_roadblock_ids = ego_lane.get_roadblock_id()
             if ego_roadblock_ids not in self._route_roadblock_dict.keys():
-                # logger.warning(f"Ego lane roadblock id {ego_roadblock_ids} not in route roadblock dict keys.")
                 self.ego_route = self.get_free_drive_route_plan(ego_lane, ego_state)
             else:
                 self.ego_route = self.get_route_plan_by_search(ego_lane)
@@ -439,9 +434,9 @@ class LaneMap(ABC):
                 visited_lanes.add(nxt.id)
                 rb_id = nxt.get_roadblock_id()
                 # print(f'At depth {d+1}, exploring lane {nxt.id} with roadblock id {rb_id}')
-                # 路径上的 roadblock_id 列表（从 current_lane 的下一条边开始）
+                # Roadblock sequence along the explored path.
                 new_path = path_rb_ids + [rb_id]
-                # 一旦遇到 route 中已有的 roadblock，则停止并记录路径
+                # Stop once the free-drive search reconnects to the existing route.
                 if rb_id in target_set:
                     found_path_rb_ids = new_path
                     q.clear()
@@ -450,9 +445,7 @@ class LaneMap(ABC):
         # print(f'Found free-drive route to route after {len(found_path_rb_ids) if found_path_rb_ids else 0} roadblocks.')
         # print(f'Free-drive roadblock ids: {found_path_rb_ids}')
         if found_path_rb_ids:
-            # 将 found_path_rb_ids 按发现顺序整体插入到 route 字典前面
-            # 同时补充 lane 字典
-            # 去重：避免和已有 keys 重复
+            # Prepend the reconnecting roadblocks while preserving discovery order.
             to_insert = []
             for rb_id in found_path_rb_ids:
                 if rb_id not in to_insert:
@@ -462,7 +455,6 @@ class LaneMap(ABC):
             for rb_id in to_insert:
                 if rb_id not in new_route_roadblock_ids:
                     new_route_roadblock_ids.append(rb_id)
-                # 同步补充该 roadblock 的内部 lane 到 route lane dict
             for rb_id in route_keys:
                 if rb_id not in new_route_roadblock_ids:
                     new_route_roadblock_ids.append(rb_id)
@@ -470,7 +462,7 @@ class LaneMap(ABC):
             self._load_route_dicts(new_route_roadblock_ids)
             # print(f'updated route roadblock dict keys: {list(self._route_roadblock_dict.keys())}')
 
-            # 既然已连接上既有 route，直接切换到 route-based 搜索
+            # The free-drive path now reconnects to the route, so switch back to route-based search.
             return self.get_route_plan_by_search(current_lane)
         
         # no route found, do free-drive till end of lane graph or depth limit
@@ -519,15 +511,15 @@ class LaneMap(ABC):
                     # Each next lane must be an outgoing edge of previous and intersect the buffer.
                     def build_chain(seed: LaneGraphEdgeMapObject,
                                     max_depth: int = 10) -> Tuple[List[LaneGraphEdgeMapObject], float]:
-                        # 计算 lane 在 buffer_poly 中的有效投影长度
                         def lane_buffer_score(lane_obj: LaneGraphEdgeMapObject) -> float:
+                            """Score a lane by expert endpoint progress and heading alignment."""
                             cl = np.array([s.array for s in lane_obj.baseline_path.discrete_path])
                             ls = LineString(cl[:, :2])
                             # inter = ls.intersection(traj_buffer_poly)
                             project_dist = ls.project(Point(expert_traj[-1, :2]))
 
                             lane_yaw = np.array([s.heading for s in lane_obj.baseline_path.discrete_path])
-                            # 采样 lane 的起点/中点/终点，匹配 expert_traj 最近点并计算平均 yaw 差
+                            # Match lane start/mid/end to nearby expert samples and average heading error.
                             sample_idx = [0, cl.shape[0] // 2, cl.shape[0] - 1]
                             lane_sample_xy = cl[sample_idx, :2] # [3, 2]
                             lane_sample_yaw = lane_yaw[sample_idx]
@@ -550,7 +542,7 @@ class LaneMap(ABC):
                             # return overlap_len * np.cos(yaw_diff_avg)  # Penalize misalignment
                             return project_dist * np.cos(yaw_diff_avg)  # Penalize misalignment
 
-                        # 递归前瞻：在剩余深度内继续累计 buffer 内的有效长度
+                        # Recursively accumulate future lane scores within the expert buffer.
                         memo = {}
                         def lookahead(lane_obj: LaneGraphEdgeMapObject, depth_left: int) -> float:
                             key = (lane_obj.id, depth_left)
@@ -576,7 +568,7 @@ class LaneMap(ABC):
                         total_score = lane_buffer_score(seed)
 
                         while depth < max_depth:
-                            # 候选：与 buffer 相交的下一层
+                            # Candidate next lanes must intersect the expert buffer.
                             next_candidates = [
                                 e for e in current.outgoing_edges
                                 if (e is not None and e.polygon.intersects(traj_buffer_poly))
@@ -586,15 +578,13 @@ class LaneMap(ABC):
                             if not next_candidates:
                                 break
 
-                            # 为每个候选计算综合分数：自身有效长度 + lookahead
                             scores = []
                             for cand in next_candidates:
                                 s_self = lane_buffer_score(cand)
                                 s_future = lookahead(cand, max_depth - depth - 1)
-                                # 轻微加权自身长度，避免只因远处一小段而选择局部很差的 lane
+                                # Keep a small local preference so distant overlap does not dominate a poor immediate lane.
                                 scores.append((cand, s_self + s_future + 0.1 * s_self))
 
-                            # 选最高分
                             scores.sort(key=lambda x: x[1], reverse=True)
                             best_lane, best_score = scores[0]
 
@@ -1000,50 +990,16 @@ class LaneMap(ABC):
                     starting_lane = lane
             if starting_lane is not None:
                 return starting_lane
-        # # 1. Find neareat route lane intersecting with ego footprint, if any
-        # intersecting_route_lanes = [
-        #     lane for lane in self._route_lane_dict.values() if lane.polygon.intersects(ego_state.car_footprint.geometry)
-        # ]
-        # if any(intersecting_route_lanes):
-        #     if len(intersecting_route_lanes) > 1:
-        #         lane_centers = [
-        #             np.array([state.array for state in lane.baseline_path.discrete_path], dtype=np.float64) for lane in intersecting_route_lanes
-        #         ]
-        #         lane_distances = [
-        #             np.linalg.norm(np.array([agent_state.x, agent_state.y]) - lane_center, axis=-1).min() for lane_center in lane_centers
-        #         ]
-        #         best_idx = int(np.argmin(lane_distances))
-        #         return intersecting_route_lanes[best_idx]
-        #     else:
-        #         return intersecting_route_lanes[0]
-        # else:
-        #     lane_centers = [
-        #         np.array([state.array for state in lane.baseline_path.discrete_path], dtype=np.float64) for lane in self._route_lane_dict.values()
-        #     ]
-        #     lane_distances = [
-        #         np.linalg.norm(np.array([agent_state.x, agent_state.y]) - lane_center, axis=-1).min() for lane_center in lane_centers
-        #     ]
-        #     if np.argmin(lane_distances) < 5.0:  # only consider lanes within 5m
-        #         best_idx = int(np.argmin(lane_distances))
-        #         return list(self._route_lane_dict.values())[best_idx]
             
         on_lanes, heading_error = self._get_intersecting_lanes(ego_state)
-        # print(f'on_lanes found: {len(on_lanes)}')
-        # print(f'on lane IDs: {[lane.id for lane in on_lanes]}')
-        # print(f'route_lane dict keys: {list(self._route_lane_dict.keys())}')
+        
         if on_lanes:
             
             on_route_lanes = [lane for lane in on_lanes if lane.id in self._route_lane_dict.keys()]
-            # print(f'found {len(on_route_lanes)} on-route intersecting lanes.')
             on_route_heading_error = [heading_error[i] for i, lane in enumerate(on_lanes) if lane.id in self._route_lane_dict.keys()]
             if on_route_lanes:
-                # print(f"Found {len(on_route_lanes)} on-route intersecting lanes.")
                 starting_lane = on_route_lanes[np.argmin(on_route_heading_error)]
             else:
-                # for lane in on_lanes:
-                #     if np.any([out_edge.id in self._route_lane_dict.keys() for out_edge in lane.outgoing_edges if out_edge is not None]):
-                #         starting_lane = lane
-                #         break
                 if starting_lane is None:
                     starting_lane = on_lanes[np.argmin(np.abs(heading_error))]
             return starting_lane
@@ -1151,10 +1107,6 @@ class LaneMap(ABC):
                 heading_error = 0.5 * (current_heading_error + future_heading_error)
                 heading_error = np.abs(normalize_angle(heading_error))
                 
-                # print(f'Checking intersecting lane {lane_id}')
-                # print(f'  Current heading error (rad): {current_heading_error:.3f}, Future heading error (rad): {future_heading_error:.3f}')
-                # print(f'  Heading error (rad): {heading_error:.3f}')
-                
                 if heading_error > np.pi * 0.5:
                     # discard lanes with large heading error
                     continue
@@ -1166,10 +1118,11 @@ class LaneMap(ABC):
     
     def _update_ref_path(self, ego_state: EgoState, ref_path_resolution: float = 0.5):
         """
-        基于 numpy 完成所有中间计算，最后一次性转换为 torch.Tensor
-        生成:
-          self.ref_path: [N,5] -> x,y,yaw,s,speed_limit
-          self.lane_boundaries: [N,2] -> left_dist,right_dist(负号方向已在上游处理)
+        Build the route reference path with NumPy and store the final arrays.
+
+        Outputs:
+          self.ref_path: [N, 5] -> x, y, yaw, s, speed_limit
+          self.lane_boundaries: [N, 2] -> left_dist, right_dist
         """
         ref_path_np = None
         lane_boundaries_np = None
@@ -1177,22 +1130,19 @@ class LaneMap(ABC):
         cumulative_s = 0.0
 
         for lane in self.ego_route:
-            # 累积长度可用于截断（当前保留全长）
             cumulative_s += lane.baseline_path.length
             path_states = lane.baseline_path.discrete_path
             discrete_lane = np.array([st.array for st in path_states], dtype=np.float64)  # [M,3] (x,y,heading)
 
-            # 速度上限
             speed_limit = lane.speed_limit_mps or 15.0
             lane_speed_limit = np.full(discrete_lane.shape[0], speed_limit, dtype=np.float32)
 
-            # 计算左右边界距离与相邻中心线距离
             road_block = self._route_roadblock_dict[lane.get_roadblock_id()]
             left_bound_dist, right_bound_dist = self._get_lane_boundaries(road_block, lane)
             lane_boundaries = np.stack((left_bound_dist, -right_bound_dist), axis=1)                # [M,2]
 
             if ref_path_np is None:
-                ref_path_np = discrete_lane[:, :2]              # 只保留 x,y
+                ref_path_np = discrete_lane[:, :2]
                 lane_boundaries_np = lane_boundaries
                 lane_speed_limit_np = lane_speed_limit
             else:
@@ -1200,7 +1150,6 @@ class LaneMap(ABC):
                 lane_boundaries_np = np.concatenate((lane_boundaries_np, lane_boundaries), axis=0)
                 lane_speed_limit_np = np.concatenate((lane_speed_limit_np, lane_speed_limit), axis=0)
 
-        # 可选: 转局部坐标
         if self.use_local_coords and ref_path_np is not None:
             ego_yaw = -ego_state.rear_axle.heading
             c, s = np.cos(ego_yaw), np.sin(ego_yaw)
@@ -1208,7 +1157,7 @@ class LaneMap(ABC):
             ego_xy = ego_state.rear_axle.point.array
             ref_path_np = (ref_path_np - ego_xy) @ R
 
-        # 去除重复点(距离<1e-3)
+        # Drop near-duplicate points to avoid zero-length segments.
         if ref_path_np is not None and ref_path_np.shape[0] >= 2:
             diffs = np.diff(ref_path_np, axis=0)
             dists = np.linalg.norm(diffs, axis=1)
@@ -1219,16 +1168,14 @@ class LaneMap(ABC):
                 lane_boundaries_np = lane_boundaries_np[keep_mask]
                 lane_speed_limit_np = lane_speed_limit_np[keep_mask]
 
-        # 保证至少两个点
+        # Ensure at least two points so yaw and arc length are well-defined.
         if ref_path_np.shape[0] < 2:
             ref_path_np = np.vstack([ref_path_np, ref_path_np[-1] + np.array([1e-3, 0.0])])
             lane_boundaries_np = np.vstack([lane_boundaries_np, lane_boundaries_np[-1]])
             lane_speed_limit_np = np.concatenate([lane_speed_limit_np, lane_speed_limit_np[-1:]])
 
-        # 计算 yaw
         diffs = np.diff(ref_path_np, axis=0)
         yaw = np.arctan2(diffs[:, 1], diffs[:, 0])
-        # 处理非法 yaw
         if np.any(np.isnan(yaw)) or np.any(np.isinf(yaw)):
             valid = ~np.isnan(yaw) & ~np.isinf(yaw)
             idxs = np.arange(yaw.shape[0])
@@ -1236,14 +1183,12 @@ class LaneMap(ABC):
                 yaw = np.interp(idxs, idxs[valid], yaw[valid])
             else:
                 yaw = np.zeros_like(yaw)
-        yaw = np.concatenate([yaw, yaw[-1:]], axis=0)  # 补齐长度
+        yaw = np.concatenate([yaw, yaw[-1:]], axis=0)
 
-        # 累积 s
         ds = np.linalg.norm(diffs, axis=1)
         s_arr = np.cumsum(ds)
         s_arr = np.concatenate([[0.0], s_arr], axis=0)
 
-        # 拼接 ref_path: x,y,yaw,s,speed_limit
         speed_limit_col = lane_speed_limit_np.reshape(-1, 1)
         ref_path_tensor_np = np.concatenate(
             [ref_path_np,
@@ -1323,116 +1268,29 @@ class LaneMap(ABC):
         return (left_bound_dist.astype(np.float32),
                 right_bound_dist.astype(np.float32),
                 )
-
-    def get_nearest_lane_distances(self, 
-                                   position: np.ndarray=None,
-                                   position_sd: np.ndarray=None) -> List[float]:
-        """
-        获取当前位置到最近车道中心线的距离
-        :param position: 车辆当前位置 [x, y, yaw]
-        :param position_sd: 车辆当前位置的 Frenet 坐标 [s, d]
-        :return: 最近距离 (米)
-        """
-        if self.frenet_path_util is None:
-            raise AssertionError("LaneMap: FrenetPathUtil must be initialized first (call step/update before querying).")
-        if position is None and position_sd is None:
-            raise ValueError("Either position or position_sd must be provided.")
-        if position_sd is not None:
-            current_s, current_d = position_sd
-        else:
-            current_s, current_d = self.cartesian_to_frenet(position[np.newaxis, :2])[0]
-        
-        # 获取参考线点
-        # compute lateral d for every nearby lane at current_s (closest point along lane centerline)
-        nearest_lane_ds = []
-        
-        # create a fake ls to choose lanes within certain distance
-        fake_sd_line = np.ones((5,2))
-        fake_sd_line[:,0] = current_s
-        fake_sd_line[:,1] = np.linspace(current_d - 5.0, current_d + 5.0, 5)
-        fake_xy_line = self.frenet_to_cartesian(fake_sd_line)  # [5,2]
-        fake_ls = LineString(fake_xy_line)
-        fake_polygon = fake_ls.buffer(0.5)  # small buffer to create polygon
-        nearby_lanes = self._drivable_area_map_local.intersects(fake_polygon)
-        
-        if nearby_lanes:
-            for lane_id in nearby_lanes:
-                # collect lane centerline points with headings
-                if lane_id not in self._lane_map_dict.keys():
-                    # print(f"Lane ID {lane_id} not found in lane map dictionary.")
-                    continue
-
-                lane = self._lane_map_dict[lane_id]
-                lane_pts = np.array([st.array for st in lane.baseline_path.discrete_path], dtype=np.float64)  # [M,2]
-                lane_yaw = np.array([st.heading for st in lane.baseline_path.discrete_path], dtype=np.float64)  # [M,]
-
-                # convert lane to local coords
-                ego_yaw = -self._ego_state.rear_axle.heading
-                c, s = np.cos(ego_yaw), np.sin(ego_yaw)
-                R = np.array([[c, s], [-s, c]], dtype=np.float64)
-                ego_xy = self._ego_state.rear_axle.point.array
-                lane_pts = (lane_pts - ego_xy) @ R
-                lane_yaw = lane_yaw + ego_yaw
-                lane_se2 = np.concatenate([lane_pts[:, :2], lane_yaw[:, np.newaxis]], axis=1)  # [M,3]
-                
-                if lane_pts.size == 0:
-                    # print(f"Lane ID {lane_id} has empty baseline path.")
-                    continue
-                try:
-                    # convert lane centerline points to frenet (s,d)
-                    sd_arr = self.cartesian_to_frenet(lane_se2)  # [M,2]
-                except Exception:
-                    # fallback: skip lane if conversion fails
-                    # print(f"Failed to convert lane ID {lane_id} points to Frenet coordinates.")
-                    continue
-                # find point on this lane whose s is closest to current_s
-                s_vals = sd_arr[:, 0]
-                idx = int(np.argmin(np.abs(s_vals - current_s)))
-                d_val = float(sd_arr[idx, 1])
-                nearest_lane_ds.append(d_val)
-
-        # expose the computed lateral offsets for callers (optional)
-        # self.nearest_lane_ds = nearest_lane_ds
-        # ref_path_np = self.ref_path
-        # diffs = ref_path_np[:, :2] - position.reshape(1, 2)
-        # dists = np.linalg.norm(diffs, axis=1)
-        # min_dist = np.min(dists)
-        # 去重：删除相差小于0.1米的近似重复 lateral offsets
-        if nearest_lane_ds:
-            arr = np.array(nearest_lane_ds, dtype=float)
-            # 排序后按顺序去除相邻差值小于0.1的项，保留每个簇的第一个值
-            sorted_vals = np.sort(arr)
-            kept = []
-            for v in sorted_vals:
-                if not kept or abs(v - kept[-1]) >= 0.1:
-                    kept.append(v)
-            nearest_lane_ds = list(kept)
-
-        return nearest_lane_ds
     
     def get_road_feature(self, ego_state: EgoState, 
                          tl_data: List[TrafficLightStatusData],
                          roi_map: ROIMap = None,
                          max_lane_num: int = 70,
                          max_non_lane_num: int = 10,
-                         num_points = 20,  # center_line目标点数
-                         num_edge = 20,     # polygon目标边数
+                         num_points = 20,  # Target centerline point count.
+                         num_edge = 20,     # Target polygon vertex count.
                          lane_preview_dist: float = 10.0
                          ) -> Dict:
         """
-        提取车辆周围道路元素并转换到车体坐标系
-        :param ego_state: 车辆当前状态
-        :param map_radius: 地图提取半径 (米)
-        :return: 包含转换后道路元素的字典
+        Extract nearby road elements and transform them into the ego-centric frame.
+        :param ego_state: Current ego state.
+        :param tl_data: Traffic light status records.
+        :param roi_map: Optional ROI filter.
+        :return: Road feature dictionary in ego coordinates.
         """
 
-        # 预处理交通信号
         signal_dict = {}
         for data in tl_data:
             lane_id = str(data.lane_connector_id)
             signal_dict[lane_id] = data.status
         
-        # 获取局部区域地图元素
         position = ego_state.rear_axle.point
         elements = self._map_api.get_proximal_map_objects(
             position, self.map_radius, [
@@ -1445,7 +1303,6 @@ class LaneMap(ABC):
             ]
         )
 
-        # 坐标系转换参数
         ego_angle = -ego_state.rear_axle.heading
         rotation_matrix = np.array([
             [np.cos(ego_angle), np.sin(ego_angle)],
@@ -1456,12 +1313,12 @@ class LaneMap(ABC):
         def empty_road_data() -> Dict[str, List]:
             return {
                 'center_line': [],
-                'road_geometry': [],      # 几何数据列表（不同元素形状可变）
-                'road_type': [],          # 类型编码列表
-                'road_traffic_light': [], # 交通信号列表
-                'road_speed_limit': [],   # 限速数据列表
-                'id': [],                 # 道路元素ID列表
-                'distance': [],           # 距离列表
+                'road_geometry': [],
+                'road_type': [],
+                'road_traffic_light': [],
+                'road_speed_limit': [],
+                'id': [],
+                'distance': [],
             }
 
         road_data = empty_road_data()
@@ -1470,9 +1327,7 @@ class LaneMap(ABC):
 
         
         if self.use_ref_path:
-            # 基于参考线计算道路元素距离
             ref_path_np = self.ref_path
-            # 提取参考线在 s=lane_preview_dist 处的局部坐标 [x, y]（如果可用）
             ref_point_preview_point = None
             dist = np.linalg.norm(ref_path_np[:, :2], axis=1)
             ego_current_ref_idx = np.argmin(dist)
@@ -1488,7 +1343,6 @@ class LaneMap(ABC):
         else:
             ref_point_preview_point = None
         
-        # 处理车道线数据
         for layer in [SemanticMapLayer.ROADBLOCK, 
                       SemanticMapLayer.ROADBLOCK_CONNECTOR]:
             for rbk in elements[layer]:
@@ -1500,11 +1354,9 @@ class LaneMap(ABC):
                     polygon_obj = Polygon(local_polygon_coords)
 
                     if roi_map is not None:
-                        # 如果提供了ROI地图，则检查车道是否在ROI内
                         if not roi_map.polygon_in_roi(polygon_obj):
                             continue
 
-                    # 交通信号
                     lane_id = str(lane.id)
                     if lane_id in signal_dict.keys():
                         tl_signal = signal_dict[lane_id]
@@ -1512,21 +1364,17 @@ class LaneMap(ABC):
                         tl_signal = TrafficLightStatusType.GREEN
 
 
-                    # 转换中心线
                     discrete_path = np.array([state.array for state in lane.baseline_path.discrete_path])
                     
-                    # center_line降采样处理
                     if len(discrete_path) > num_points:
-                        # 降采样到num_points
                         discrete_path = resample_discrete_path(lane.baseline_path.discrete_path, num_points)
                     elif len(discrete_path) < num_points:
-                        # 不足则重复最后一个点补齐
                         last_point = discrete_path[-1:]
                         repeat_times = num_points - len(discrete_path)
                         discrete_path = np.concatenate([discrete_path, np.tile(last_point, (repeat_times, 1))])
                     
                     
-                    # polygon降采样到num_edge，tolerance从0.5递增，直到点数小于等于num_edge
+                    # Simplify polygon until it fits the fixed vertex budget.
                     tolerance = 1.0
                     while True:
                         simplified_polygon = polygon_obj.simplify(tolerance=tolerance, preserve_topology=True)
@@ -1535,22 +1383,18 @@ class LaneMap(ABC):
                             break
                         tolerance += 0.5
                     if len(polygon_coords) > num_edge:
-                        # 截断到num_edge
                         polygon_coords = polygon_coords[:num_edge]
                     elif len(polygon_coords) < num_edge:
-                        # 不足则重复补齐
                         last_point = polygon_coords[-1:]
                         repeat_times = num_edge - len(polygon_coords)
                         polygon_coords = np.concatenate([polygon_coords, np.tile(last_point, (repeat_times, 1))])
                     
-                    # 转换到局部坐标系
                     local_path = (discrete_path - ego_position) @ rotation_matrix
                     
-                    # 计算local_path的yaw，并补充到local_path中
+                    # Append yaw to the local centerline.
                     diff = np.diff(local_path, axis=0)
                     yaw = np.arctan2(diff[:, 1], diff[:, 0])
-                    yaw = np.concatenate([yaw, yaw[-1:]], axis=0)  # 补齐长度
-                    # 对yaw中的非法值进行插值，并将其转换至(-pi,pi)区间
+                    yaw = np.concatenate([yaw, yaw[-1:]], axis=0)
                     if np.any(np.isnan(yaw)) or np.any(np.isinf(yaw)):
                         valid = ~np.isnan(yaw) & ~np.isinf(yaw)
                         indices = np.arange(len(yaw))
@@ -1566,7 +1410,6 @@ class LaneMap(ABC):
                     elif layer == SemanticMapLayer.ROADBLOCK_CONNECTOR:
                         lane_type = RoadType.CONNECTOR
 
-                    # 计算车道与参考线的距离（如果参考线可用）
                     if ref_point_preview_point is not None:
                         lane_center = local_path[:, :2]
                         distance_to_ref = np.linalg.norm(lane_center - ref_point_preview_point, axis=-1).min()
@@ -1584,7 +1427,6 @@ class LaneMap(ABC):
                     lane_data['road_speed_limit'].append(lane.speed_limit_mps or 15)
 
 
-        # 处理停止线数据
         for layer in [# SemanticMapLayer.STOP_LINE,
                         SemanticMapLayer.CROSSWALK,
                         SemanticMapLayer.INTERSECTION,
@@ -1604,11 +1446,10 @@ class LaneMap(ABC):
                 polygon_obj = Polygon(local_polyon_coords)
 
                 if roi_map is not None:
-                    # 如果提供了ROI地图，则检查车道是否在ROI内
                     if not roi_map.polygon_in_roi(polygon_obj):
                         continue
                     
-                # polygon降采样到num_edge，tolerance从0.5递增，直到点数小于等于num_edge
+                # Simplify polygon until it fits the fixed vertex budget.
                 tolerance = 0.5
                 while True:
                     simplified_polygon = polygon_obj.simplify(tolerance=tolerance, preserve_topology=True)
@@ -1617,15 +1458,12 @@ class LaneMap(ABC):
                         break
                     tolerance += 0.1
                 if len(polygon_coords) > num_edge:
-                    # 截断到num_edge
                     polygon_coords = polygon_coords[:num_edge]
                 elif len(polygon_coords) < num_edge:
-                    # 不足则重复补齐
                     last_point = polygon_coords[-1:]
                     repeat_times = num_edge - len(polygon_coords)
                     polygon_coords = np.concatenate([polygon_coords, np.tile(last_point, (repeat_times, 1))])
 
-                # 计算车道类型编码
                 if layer == SemanticMapLayer.STOP_LINE:
                     lane_type = RoadType.STOP_LINE
                 elif layer == SemanticMapLayer.CROSSWALK:
@@ -1648,7 +1486,6 @@ class LaneMap(ABC):
                 element_centroid = polygon_obj.centroid
                 element_center = np.array([element_centroid.x, element_centroid.y], dtype=np.float32)
 
-                # 计算元素与参考线的距离（如果参考线可用）
                 if ref_point_preview_point is not None:
                     distance_to_ref = np.linalg.norm(element_center - ref_point_preview_point)
                     distance_to_ego = np.linalg.norm(element_center)
@@ -1664,7 +1501,7 @@ class LaneMap(ABC):
                 element_data['road_traffic_light'].append(0)
                 element_data['road_speed_limit'].append(-1.0)
 
-        # 基于最大数量限制，筛选车道线和其他元素
+        # Keep the closest lane and non-lane elements under the feature budget.
         lane_distances = np.array(lane_data['distance'])
         if len(lane_distances) > max_lane_num:
             closest_indices = np.argsort(lane_distances)[:max_lane_num]
@@ -1674,7 +1511,6 @@ class LaneMap(ABC):
             closest_indices = np.argsort(element_distances)[:max_non_lane_num]
             element_data = {key: [value[i] for i in closest_indices] for key, value in element_data.items()}
         
-        # 合并车道线和其他元素数据
         for key in road_data.keys():
             road_data[key].extend(lane_data[key])
             road_data[key].extend(element_data[key])
@@ -1692,14 +1528,12 @@ class LaneMap(ABC):
         del road_data['id']
         del road_data['distance']
 
-        # 检查road_data中的非法值（如NaN或inf），并记录变量名及其位置
+        # Warn on invalid feature values before returning.
         for key, arr in road_data.items():
             if isinstance(arr, np.ndarray):
-                # 检查NaN
                 nan_indices = np.argwhere(np.isnan(arr))
                 for idx in nan_indices:
                     logging.warning(f"road_data['{key}'] contains NaN at index {tuple(idx)}")
-                # 检查inf
                 inf_indices = np.argwhere(np.isinf(arr))
                 for idx in inf_indices:
                     logging.warning(f"road_data['{key}'] contains Inf at index {tuple(idx)}")
@@ -1711,10 +1545,9 @@ class LaneMap(ABC):
                           tl_data: List[TrafficLightStatusData],
                           roi_map: ROIMap = None,
                           max_route_num: int = 10,
-                          num_edge = 20     # polygon目标边数
+                          num_edge = 20     # Target polygon vertex count.
                           ) -> Dict:
 
-        # 坐标系转换参数
         ego_angle = -ego_state.rear_axle.heading
         rotation_matrix = np.array([
             [np.cos(ego_angle), np.sin(ego_angle)],
@@ -1723,9 +1556,9 @@ class LaneMap(ABC):
         ego_position = ego_state.rear_axle.point.array
 
         route_data = {
-            'route_geometry': [],      # 几何数据列表（不同元素形状可变）
-            'id': [],                 # 道路元素ID列表
-            'distance': [],           # 距离列表
+            'route_geometry': [],
+            'id': [],
+            'distance': [],
         }
         start_idx = 0
         for idx, (rb_id, rbk) in enumerate(self._route_roadblock_dict.items()):
@@ -1741,11 +1574,10 @@ class LaneMap(ABC):
                     start_idx = idx
 
             if roi_map is not None:
-                # 如果提供了ROI地图，则检查车道是否在ROI内
                 if not roi_map.polygon_in_roi(polygon_obj):
                     continue
                 
-            # polygon降采样到num_edge，tolerance从0.5递增，直到点数小于等于num_edge
+            # Simplify polygon until it fits the fixed vertex budget.
             tolerance = 0.5
             while True:
                 simplified_polygon = polygon_obj.simplify(tolerance=tolerance, preserve_topology=True)
@@ -1754,10 +1586,8 @@ class LaneMap(ABC):
                     break
                 tolerance += 0.1
             if len(polygon_coords) > num_edge:
-                # 截断到num_edge
                 polygon_coords = polygon_coords[:num_edge]
             elif len(polygon_coords) < num_edge:
-                # 不足则重复补齐
                 last_point = polygon_coords[-1:]
                 repeat_times = num_edge - len(polygon_coords)
                 polygon_coords = np.concatenate([polygon_coords, np.tile(last_point, (repeat_times, 1))])
@@ -1803,9 +1633,7 @@ class LaneMap(ABC):
         ref_path_bounds = self.lane_boundaries
         ref_path_centers = ref_path_np[:, :2]
         
-        # 计算yaw
         yaw = ref_path_np[:, 2]
-        # 检查yaw中的nan或inf并用前后有效值差分填充
         if np.any(np.isnan(yaw)) or np.any(np.isinf(yaw)):
             valid = ~np.isnan(yaw) & ~np.isinf(yaw)
             indices = np.arange(len(yaw))
@@ -1817,7 +1645,7 @@ class LaneMap(ABC):
         ref_speed_limit = ref_path_np[:, 4].reshape(-1, 1)
         ref_feat = np.concatenate((ref_path_centers, yaw[:, None], ref_path_bounds, ref_speed_limit), axis=1)
 
-        # 截断到ref_path_lookahead范围内
+        # Clip to the configured lookbehind/lookahead window around the ego projection.
         dist = np.linalg.norm(ref_path_np[:, :2], axis=1)
         ego_current_ref_idx = np.argmin(dist)
         ego_current_s = ref_path_np[ego_current_ref_idx, 3]
@@ -1828,7 +1656,7 @@ class LaneMap(ABC):
             ref_feat = ref_feat[start_idx:idx, :]
             s_arr = s_arr[start_idx:idx]
 
-        # 重采样到ref_path_num_points点
+        # Resample to a fixed number of reference path points.
         if ref_feat.shape[0] != ref_path_num_points:
             s_uniform = np.linspace(s_arr[0], s_arr[-1], ref_path_num_points)
             ref_feat_resampled = np.zeros((ref_path_num_points, ref_feat.shape[1]), dtype=ref_feat.dtype)
@@ -1836,7 +1664,6 @@ class LaneMap(ABC):
                 ref_feat_resampled[:, i] = np.interp(s_uniform, s_arr, ref_feat[:, i])
             ref_feat = ref_feat_resampled
         
-        # 检查ref_feat中的非法值（如NaN或inf），并记录其位置
         nan_indices = np.argwhere(np.isnan(ref_feat))
         assert len(nan_indices) == 0, "ref_feat contains NaN values"
         for idx in nan_indices:
@@ -1847,294 +1674,6 @@ class LaneMap(ABC):
         
         return ref_feat.astype(np.float32)
 
-    def build_ref_path_feature_from_points(
-        self,
-        path_points: np.ndarray,
-        ref_path_num_points: int = 200,
-    ) -> np.ndarray:
-        """Build a ref-path-like feature from an arbitrary local path using current lane attributes."""
-        path_points = np.asarray(path_points, dtype=np.float32)
-        if path_points.ndim != 2 or path_points.shape[0] < 2:
-            raise ValueError(f"path_points must be [N, D>=2], got {path_points.shape}")
-
-        if path_points.shape[1] < 3:
-            diffs = np.diff(path_points[:, :2], axis=0)
-            yaw = np.arctan2(diffs[:, 1], diffs[:, 0])
-            yaw = np.concatenate([yaw[:1], yaw], axis=0)
-            path_xyyaw = np.concatenate([path_points[:, :2], yaw[:, None]], axis=1)
-        else:
-            path_xyyaw = path_points[:, :3].copy()
-
-        diffs = np.diff(path_xyyaw[:, :2], axis=0)
-        seg_len = np.linalg.norm(diffs, axis=1)
-        valid_seg = np.concatenate([[True], seg_len > 1e-3])
-        path_xyyaw = path_xyyaw[valid_seg]
-        if path_xyyaw.shape[0] < 2:
-            path_xyyaw = np.concatenate([path_xyyaw, path_xyyaw[-1:] + np.array([[1e-3, 0.0, 0.0]], dtype=np.float32)], axis=0)
-
-        diffs = np.diff(path_xyyaw[:, :2], axis=0)
-        seg_len = np.linalg.norm(diffs, axis=1)
-        cumulative_s = np.concatenate([[0.0], np.cumsum(seg_len)])
-        if cumulative_s[-1] < 1e-3:
-            cumulative_s[-1] = 1e-3
-
-        target_s = np.linspace(cumulative_s[0], cumulative_s[-1], ref_path_num_points)
-        ref_centers = np.zeros((ref_path_num_points, 2), dtype=np.float32)
-        ref_yaw = np.zeros((ref_path_num_points,), dtype=np.float32)
-        ref_centers[:, 0] = np.interp(target_s, cumulative_s, path_xyyaw[:, 0])
-        ref_centers[:, 1] = np.interp(target_s, cumulative_s, path_xyyaw[:, 1])
-
-        yaw_unwrapped = np.unwrap(path_xyyaw[:, 2].astype(np.float64))
-        ref_yaw = np.interp(target_s, cumulative_s, yaw_unwrapped).astype(np.float32)
-        ref_yaw = (ref_yaw + np.pi) % (2 * np.pi) - np.pi
-
-        return np.concatenate(
-            [ref_centers, ref_yaw[:, None]],
-            axis=1,
-        ).astype(np.float32)
-
-    def _transform_global_path_to_local(
-        self,
-        path_xyyaw: np.ndarray,
-        ego_state: EgoState,
-    ) -> np.ndarray:
-        path_xyyaw = np.asarray(path_xyyaw, dtype=np.float64)
-        ego_xy = ego_state.rear_axle.array.astype(np.float64)
-        ego_yaw = float(ego_state.rear_axle.heading)
-        rotation = np.array(
-            [[np.cos(ego_yaw), -np.sin(ego_yaw)], [np.sin(ego_yaw), np.cos(ego_yaw)]],
-            dtype=np.float64,
-        )
-        local_path = path_xyyaw.copy()
-        local_path[:, :2] = (path_xyyaw[:, :2] - ego_xy) @ rotation
-        local_path[:, 2] = np.arctan2(
-            np.sin(path_xyyaw[:, 2] - ego_yaw),
-            np.cos(path_xyyaw[:, 2] - ego_yaw),
-        )
-        return local_path.astype(np.float32, copy=False)
-
-    def _find_best_lane_near_global_pose(
-        self,
-        pose_xyyaw: np.ndarray,
-        search_radius: float = 8.0,
-    ) -> Optional[LaneGraphEdgeMapObject]:
-        if self._map_api is None:
-            return None
-
-        probe_state = StateSE2(float(pose_xyyaw[0]), float(pose_xyyaw[1]), float(pose_xyyaw[2]))
-        nearby_map = self._map_api.get_proximal_map_objects(
-            probe_state.point,
-            search_radius,
-            [SemanticMapLayer.ROADBLOCK, SemanticMapLayer.ROADBLOCK_CONNECTOR],
-        )
-
-        best_lane: Optional[LaneGraphEdgeMapObject] = None
-        best_score = float("inf")
-        query_xy = np.asarray(pose_xyyaw[:2], dtype=np.float32)
-        query_yaw = float(pose_xyyaw[2])
-        query_point = Point(float(query_xy[0]), float(query_xy[1]))
-        for layer in (SemanticMapLayer.ROADBLOCK, SemanticMapLayer.ROADBLOCK_CONNECTOR):
-            for roadblock in nearby_map.get(layer, []):
-                for lane in roadblock.interior_edges:
-                    lane_path = lane.baseline_path.discrete_path
-                    if not lane_path:
-                        continue
-                    lane_xy = np.asarray([[state.x, state.y] for state in lane_path], dtype=np.float32)
-                    point_dist = np.linalg.norm(lane_xy - query_xy[None, :], axis=1)
-                    nearest_idx = int(np.argmin(point_dist))
-                    nearest_dist = float(point_dist[nearest_idx])
-                    heading_error = abs(normalize_angle(lane_path[nearest_idx].heading - query_yaw))
-                    score = nearest_dist + 1.5 * heading_error
-                    if lane.polygon.contains(query_point):
-                        score -= 1.0
-                    if score < best_score:
-                        best_score = score
-                        best_lane = lane
-        return best_lane
-
-    def _lane_to_xyyaw_array(
-        self,
-        lane: LaneGraphEdgeMapObject,
-    ) -> np.ndarray:
-        lane_path = lane.baseline_path.discrete_path
-        return np.asarray(
-            [[state.x, state.y, state.heading] for state in lane_path],
-            dtype=np.float32,
-        )
-
-    def _score_lane_against_expert_line(
-        self,
-        lane: LaneGraphEdgeMapObject,
-        expert_line: LineString,
-        expert_goal_xy: np.ndarray,
-        current_progress: float,
-    ) -> Tuple[float, float, float, float]:
-        lane_xyyaw = self._lane_to_xyyaw_array(lane)
-        lane_line = LineString(lane_xyyaw[:, :2])
-        lane_end_point = Point(float(lane_xyyaw[-1, 0]), float(lane_xyyaw[-1, 1]))
-        end_progress = float(expert_line.project(lane_end_point))
-        progress_gain = max(end_progress - current_progress, 0.0)
-        line_distance = float(lane_line.distance(expert_line))
-        goal_distance = float(np.linalg.norm(lane_xyyaw[-1, :2] - expert_goal_xy))
-        intersects = lane.polygon.buffer(1.5).intersects(expert_line)
-        return (
-            0.0 if intersects else 1.0,
-            -progress_gain,
-            line_distance,
-            goal_distance,
-        )
-
-    def _build_expert_route_plan_from_global_path(
-        self,
-        path_xyyaw_global: np.ndarray,
-        ego_state: EgoState,
-        search_depth: int = 30,
-        search_max_lane_length: float = 250.0,
-    ) -> List[LaneGraphEdgeMapObject]:
-        path_xyyaw_global = np.asarray(path_xyyaw_global, dtype=np.float32)
-        ego_xy = np.asarray(ego_state.rear_axle.array, dtype=np.float32)
-        distance_to_ego = np.linalg.norm(path_xyyaw_global[:, :2] - ego_xy[None, :], axis=1)
-        start_idx = int(np.argmin(distance_to_ego))
-        if start_idx >= path_xyyaw_global.shape[0] - 1:
-            start_idx = max(path_xyyaw_global.shape[0] - 2, 0)
-        active_path_xyyaw = path_xyyaw_global[start_idx:]
-        if active_path_xyyaw.shape[0] < 2:
-            active_path_xyyaw = path_xyyaw_global[max(path_xyyaw_global.shape[0] - 2, 0):]
-
-        expert_line = LineString(np.asarray(active_path_xyyaw[:, :2], dtype=np.float64))
-        expert_goal_xy = np.asarray(active_path_xyyaw[-1, :2], dtype=np.float32)
-        current_lane = self.get_starting_lane(ego_state)
-        nearest_start_lane = self._find_best_lane_near_global_pose(active_path_xyyaw[0])
-
-        candidate_start_lanes: List[LaneGraphEdgeMapObject] = []
-        for lane in [nearest_start_lane, current_lane]:
-            if lane is not None and lane not in candidate_start_lanes:
-                candidate_start_lanes.append(lane)
-        primary_seed_lane = nearest_start_lane if nearest_start_lane is not None else current_lane
-        if primary_seed_lane is not None:
-            for lane in list(primary_seed_lane.adjacent_edges) + list(primary_seed_lane.outgoing_edges):
-                if lane is not None and lane not in candidate_start_lanes:
-                    candidate_start_lanes.append(lane)
-
-        best_route: List[LaneGraphEdgeMapObject] = []
-        best_metric: Optional[Tuple[float, float, float, float]] = None
-        target_length = max(float(expert_line.length), 30.0)
-
-        for start_lane in candidate_start_lanes:
-            route_plan: List[LaneGraphEdgeMapObject] = [start_lane]
-            visited_lane_ids = {start_lane.id}
-            route_length = float(start_lane.baseline_path.length)
-            start_xyyaw = self._lane_to_xyyaw_array(start_lane)
-            progress = float(expert_line.project(Point(float(start_xyyaw[-1, 0]), float(start_xyyaw[-1, 1]))))
-
-            for _ in range(max(int(search_depth), 1) - 1):
-                if route_length >= min(search_max_lane_length, target_length + 20.0):
-                    break
-                outgoing_lanes = [lane for lane in route_plan[-1].outgoing_edges if lane is not None and lane.id not in visited_lane_ids]
-                if not outgoing_lanes:
-                    break
-                scored_lanes = [
-                    (self._score_lane_against_expert_line(lane, expert_line, expert_goal_xy, progress), lane)
-                    for lane in outgoing_lanes
-                ]
-                scored_lanes.sort(key=lambda item: item[0])
-                best_next_metric, best_next_lane = scored_lanes[0]
-                if best_next_metric[0] > 0.0 and best_next_metric[1] >= -1e-3:
-                    break
-                route_plan.append(best_next_lane)
-                visited_lane_ids.add(best_next_lane.id)
-                route_length += float(best_next_lane.baseline_path.length)
-                next_xyyaw = self._lane_to_xyyaw_array(best_next_lane)
-                progress = float(expert_line.project(Point(float(next_xyyaw[-1, 0]), float(next_xyyaw[-1, 1]))))
-
-            route_xy = np.concatenate([self._lane_to_xyyaw_array(lane)[:, :2] for lane in route_plan], axis=0)
-            route_line = LineString(route_xy)
-            route_end = route_xy[-1]
-            route_metric = (
-                0.0 if route_plan[0].polygon.buffer(1.5).intersects(expert_line) else 1.0,
-                -float(expert_line.project(Point(float(route_end[0]), float(route_end[1])))),
-                float(route_line.distance(expert_line)),
-                float(np.linalg.norm(route_end - expert_goal_xy)),
-            )
-            if best_metric is None or route_metric < best_metric:
-                best_metric = route_metric
-                best_route = route_plan
-
-        return best_route
-
-    def build_ref_path_feature_from_global_path(
-        self,
-        path_xyyaw_global: np.ndarray,
-        ego_state: EgoState,
-        scenario: Optional[AbstractScenario] = None,
-        ref_path_num_points: int = 200,
-        search_depth: int = 30,
-        search_max_lane_length: float = 250.0,
-    ) -> np.ndarray:
-        """Infer an expert-route ref-path from a global expert path without mutating planner state."""
-        path_xyyaw_global = np.asarray(path_xyyaw_global, dtype=np.float32)
-        if path_xyyaw_global.ndim != 2 or path_xyyaw_global.shape[0] < 2 or path_xyyaw_global.shape[1] < 3:
-            raise ValueError(
-                f"path_xyyaw_global must be [N, >=3], got {path_xyyaw_global.shape}"
-            )
-
-        ego_xy = np.asarray(ego_state.rear_axle.array, dtype=np.float32)
-        distance_to_ego = np.linalg.norm(path_xyyaw_global[:, :2] - ego_xy[None, :], axis=1)
-        start_idx = int(np.argmin(distance_to_ego))
-        if start_idx >= path_xyyaw_global.shape[0] - 1:
-            start_idx = max(path_xyyaw_global.shape[0] - 2, 0)
-        active_path_xyyaw = path_xyyaw_global[start_idx:]
-        if active_path_xyyaw.shape[0] < 2:
-            active_path_xyyaw = path_xyyaw_global[max(path_xyyaw_global.shape[0] - 2, 0):]
-
-        route_plan = self._build_expert_route_plan_from_global_path(
-            path_xyyaw_global=active_path_xyyaw,
-            ego_state=ego_state,
-            search_depth=search_depth,
-            search_max_lane_length=search_max_lane_length,
-        )
-        if route_plan:
-            discrete_xyyaw = np.concatenate(
-                [self._lane_to_xyyaw_array(lane) for lane in route_plan],
-                axis=0,
-            )
-            local_path = self._transform_global_path_to_local(discrete_xyyaw, ego_state)
-            return self.build_ref_path_feature_from_points(
-                local_path,
-                ref_path_num_points=ref_path_num_points,
-            )
-
-        local_path = self._transform_global_path_to_local(active_path_xyyaw, ego_state)
-        return self.build_ref_path_feature_from_points(local_path, ref_path_num_points=ref_path_num_points)
-    
-    def trajectories_in_road(self,
-        trajectories: np.ndarray
-    ) -> np.ndarray:
-        """
-        检查轨迹点是否在车道边界内
-        :param trajectories: 车体坐标系轨迹点数组，形状为 (N, T, 3)
-        :return: 布尔数组，形状为 (N, T)，表示每个轨迹点是否在车道边界内
-        """
-        if self._drivable_area_map_local is None:
-            raise AssertionError("LaneMap: Lane map local is not initialized!")
-
-        # 采样轨迹部分点以减少计算量
-        N, T, _ = trajectories.shape
-        sample_step = min(2, T)
-        sample_idx = np.arange(T-1, 0, -sample_step)
-        sampled_trajectories = trajectories[:, sample_idx, :]  # shape (N, x, 3)
-        sampled_traj_coords = state_array_to_coords_array(sampled_trajectories) # shape (N, x, 5, 2)
-        coords_exterior = sampled_traj_coords[:, :, :4, :]  # shape (N, x, 4, 2)
-        coords_exterior = coords_exterior.reshape(-1, 2)  # shape (N*x*4, 2)
-        corner_in_road_polygons = self._drivable_area_map_local.points_in_polygons(coords_exterior)  # shape (N*x*4, )
-        corner_in_road_polygons = corner_in_road_polygons.reshape(
-            len(self._drivable_area_map_local), N, -1, 4
-            ).transpose(1, 2, 0, 3)  # shape (N, x, num_polygons, 4)
-        non_drivable_mask = (corner_in_road_polygons.sum(axis=-2) > 0).sum(axis=-1) < 4  # shape (N, x), True if any corner is outside drivable area
-        in_road_score = np.ones((N), dtype=np.float64)
-        in_road_score[non_drivable_mask.any(axis=-1)] = 0.0
-        
-        return in_road_score
 
 def _calculate_widest_bound(bound_set, discrete_lane):
     num_points = discrete_lane.shape[0]

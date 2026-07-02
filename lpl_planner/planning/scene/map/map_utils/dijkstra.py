@@ -18,8 +18,8 @@ class Dijkstra:
         start_edge: LaneGraphEdgeMapObject, 
         candidate_lane_edge_ids: List[str],
         route_roadblock_ids: List[str],
-        curvature_weight: float = 5.0,         # 新增：曲率（累计转角）权重
-        heading_align_weight: float = 2.0,     # 新增：与当前边末端朝向对齐的权重
+        curvature_weight: float = 5.0,
+        heading_align_weight: float = 2.0,
     ):
         """
         Constructor for the Dijkstra class.
@@ -31,11 +31,10 @@ class Dijkstra:
         self._candidate_lane_edge_ids = candidate_lane_edge_ids
         self._route_roadblock_ids = route_roadblock_ids
 
-        # 平滑相关参数与缓存
         self._curvature_weight = float(curvature_weight)
         self._heading_align_weight = float(heading_align_weight)
-        self._metrics_cache: Dict[str, Tuple[float, float, float]] = {}  # lane_id -> (length, total_turn, start_heading,end_heading?) 简化为 length/turn/end_heading
-        self._heading_cache: Dict[str, Tuple[float, float]] = {}         # lane_id -> (start_heading, end_heading)
+        self._metrics_cache: Dict[str, Tuple[float, float, float]] = {}
+        self._heading_cache: Dict[str, Tuple[float, float]] = {}
 
     def search(
         self, target_roadblock: RoadBlockGraphEdgeMapObject
@@ -132,10 +131,11 @@ class Dijkstra:
         self, lane: LaneGraphEdgeMapObject, prev_edge: Optional[LaneGraphEdgeMapObject] = None
     ) -> float:
         """
-        综合代价：
-        - length: 原始长度代价（越短越好）
-        - curvature: 累计转角 sum(|dtheta|)，越小越好
-        - heading_align: 与前一条边末端的朝向差 |wrap(to - from)|，越小越好（仅在分支时生效）
+        Combined edge cost.
+
+        The current route-following cost primarily prefers the next roadblock in
+        the route sequence. Geometry caches are kept for optional curvature or
+        heading-alignment terms.
         """
         length = lane.baseline_path.length
         start_heading = lane.baseline_path.discrete_path[0].heading
@@ -148,18 +148,14 @@ class Dijkstra:
             np.array(self._route_roadblock_ids) == prev_edge.get_roadblock_id()
         ) if prev_edge is not None else 0
         route_seq_cost = lane_roadblock_in_route_idx - prev_edge_roadblock_in_route_idx
-        route_seq_cost = abs(route_seq_cost) * 1000.0  # 优先选择路线序列中的下一个路段
+        route_seq_cost = abs(route_seq_cost) * 1000.0
         # cost = total_turn/length + length + route_seq_cost
         cost = length + route_seq_cost
 
         return float(cost)
     
     def _get_edge_length_and_turn(self, lane: LaneGraphEdgeMapObject) -> Tuple[float, float]:
-        """
-        计算并缓存：
-        - length: 折线总长度
-        - total_turn: 累计转角 sum(|dtheta|)（近似曲率积分）
-        """
+        """Compute and cache polyline length and total heading change."""
         if lane.id in self._metrics_cache:
             length, total_turn = self._metrics_cache[lane.id]
             return length, total_turn
@@ -178,7 +174,6 @@ class Dijkstra:
         seg_len = np.linalg.norm(d, axis=1)
         length = float(np.sum(seg_len))
 
-        # 计算折线方向并做角度展开
         headings = np.arctan2(d[:, 1], d[:, 0])  # size N-1
         dtheta = np.diff(np.unwrap(headings))
         total_turn = float(np.sum(np.abs(dtheta)))
@@ -187,9 +182,7 @@ class Dijkstra:
         return length, total_turn
 
     def _get_edge_headings(self, lane: LaneGraphEdgeMapObject) -> Tuple[float, float]:
-        """
-        返回 (start_heading, end_heading)（由前/后段向量计算）。
-        """
+        """Return start and end headings estimated from the first and last segments."""
         if lane.id in self._heading_cache:
             return self._heading_cache[lane.id]
 
@@ -212,9 +205,7 @@ class Dijkstra:
 
     @staticmethod
     def _wrap_angle(a: float) -> float:
-        """
-        wrap 到 [-pi, pi]
-        """
+        """Wrap an angle to [-pi, pi]."""
         return (a + np.pi) % (2 * np.pi) - np.pi
 
     @staticmethod
