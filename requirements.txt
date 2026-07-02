@@ -1,6 +1,12 @@
-lightning>=2.0
+# R2LPL extra dependencies.
+# Install nuplan-devkit first following its official instructions, then install
+# this file. We intentionally do not duplicate or override the full nuPlan stack
+# here because packages such as numpy, pandas, shapely, geopandas, protobuf, and
+# PyYAML are sensitive to the nuPlan installation.
+hydra-core>=1.3,<1.4
 omegaconf>=2.3,<2.4
-scikit-learn>=1.3
-tensorboard
-PyYAML>=6.0
+lightning>=2.0,<2.6
+pytorch-lightning>=2.0,<2.6
+scikit-learn>=1.3,<1.7
+tensorboard>=2.14
 imageio>=2.31

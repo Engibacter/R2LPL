@@ -69,9 +69,11 @@ Detailed Test14-hard metrics across five ROCL updates:
 
 ## Setup
 
-R2LPL is trained and evaluated on nuPlan. Please refer to the official [nuplan-devkit](https://github.com/motional/nuplan-devkit) repository for installation and dataset setup details. Make sure the `NUPLAN_DATA_ROOT` and `NUPLAN_MAPS_ROOT` environment variables are set. The expected data layout is `${NUPLAN_DATA_ROOT}/nuplan-v1.1/trainval` and `${NUPLAN_DATA_ROOT}/nuplan-v1.1/test` for nuPlan `.db` files, and `${NUPLAN_MAPS_ROOT}/` for map files.
+R2LPL is trained and evaluated on nuPlan. Please refer to the official [nuplan-devkit](https://github.com/motional/nuplan-devkit) repository for dataset setup details. Make sure the `NUPLAN_DATA_ROOT` and `NUPLAN_MAPS_ROOT` environment variables are set. The expected data layout is `${NUPLAN_DATA_ROOT}/nuplan-v1.1/trainval` and `${NUPLAN_DATA_ROOT}/nuplan-v1.1/test` for nuPlan `.db` files, and `${NUPLAN_MAPS_ROOT}/` for map files.
 
-Once you have downloaded the dataset and set up nuplan-devkit, install R2LPL with:
+Set up a nuPlan-compatible Python environment first, then install the lightweight R2LPL extra dependencies. We do not recommend manually stacking the full `nuplan-devkit` `requirements.txt` with R2LPL's `requirements.txt`, since the full nuPlan dependency stack contains version-sensitive packages such as `numpy`, `pandas`, `shapely`, `geopandas`, `protobuf`, and `PyYAML`.
+
+Once nuPlan is importable in your environment, install R2LPL with:
 
 ```bash
 git clone https://github.com/Engibacter/R2LPL.git
