@@ -38,7 +38,7 @@ class MVVisualizeCallback(pl.Callback):
     def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         if self._cached_train_batch is None:
             return
-        # print("Generating training plots...")
+        
         # Visualize the model's predictions on the training set
         device = pl_module.device
         features, targets = self._cached_train_batch
@@ -58,7 +58,6 @@ class MVVisualizeCallback(pl.Callback):
                                                               top_k=5)
         if was_training:
             pl_module.model.train()
-        # print("Model predictions obtained for training set.")
         
         trajectories = predictions['trajectories'].detach().cpu().numpy()
         expert_trajectories = targets['expert_trajectory'].data.detach().cpu().numpy()
@@ -100,13 +99,12 @@ class MVVisualizeCallback(pl.Callback):
         torch.cuda.empty_cache()
         if hasattr(torch.cuda, 'reset_peak_memory_stats'):
             torch.cuda.reset_peak_memory_stats()
-        # print(f"Training plots logged for epoch {trainer.current_epoch}.")
 
     def on_validation_epoch_end(self, trainer: pl.Trainer, lightning_module: pl.LightningModule) -> None:
         """Inherited, see superclass."""
         if self._cached_val_batch is None:
             return
-        # print("Generating validation plots...")
+
         # Visualize the model's predictions on the training set
         device = lightning_module.device
         features, targets = self._cached_val_batch
