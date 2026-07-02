@@ -100,48 +100,37 @@ class SceneStateEncoder(nn.Module):
         Returns:
             (Tensor, Tensor, Tensor): Padded features, mask and position IDs
         """
-        # model_dtype = self.proj_road.weight.dtype  # Get model dtype from road encoder
-        # batch_inputs = batch_inputs.to_feature_tensor(dtype=model_dtype)  # Convert to tensor format
+        
         batch_size = batch_inputs.ego_feature.ego_current_state.shape[0]
         device = batch_inputs.ego_feature.ego_current_state.device
 
-        # ----------------- Batch Preprocessing -----------------
         road_batch = batch_inputs.road_feature
         agent_batch = batch_inputs.agent_feature
         static_batch = batch_inputs.static_obstacle_feature
         route_batch = batch_inputs.route_feature
         ego_batch = batch_inputs.ego_feature
 
-        # ----------------- Modular Encoding -----------------
+        # Modular encoding
         road_feat, road_mask = self.road_encoder(road_batch)  # [B, N, D]
         agent_feat, agent_mask = self.agent_encoder(agent_batch)  # [B, M, D]
         static_feat, static_mask = self.static_encoder(static_batch)  # [B, K, D]
         route_feat, route_mask = self.route_encoder(route_batch)  # [B, R, D]
         ego_feat = self.ego_encoder(ego_batch).unsqueeze(1)  # [B, 1, D]
-        # road_feat = self._maybe_debug_tensor(road_feat, "scene_encoder.road_feat_preproj", clamp=1e6)
-        # agent_feat = self._maybe_debug_tensor(agent_feat, "scene_encoder.agent_feat_preproj", clamp=1e6)
-        # static_feat = self._maybe_debug_tensor(static_feat, "scene_encoder.static_feat_preproj", clamp=1e6)
-        # route_feat = self._maybe_debug_tensor(route_feat, "scene_encoder.route_feat_preproj", clamp=1e6)
-        # ego_feat = self._maybe_debug_tensor(ego_feat, "scene_encoder.ego_feat_preproj", clamp=1e6)
+        
 
-        # ----------------- Feature Projection -----------------
+        # Feature projection
         road_feat = self.proj_road(road_feat)
         agent_feat = self.proj_agent(agent_feat)
         static_feat = self.proj_static(static_feat)
         route_feat = self.proj_route(route_feat)
         ego_feat = self.proj_ego(ego_feat)
-        # road_feat = self._maybe_debug_tensor(road_feat, "scene_encoder.road_feat_postproj", clamp=1e6)
-        # agent_feat = self._maybe_debug_tensor(agent_feat, "scene_encoder.agent_feat_postproj", clamp=1e6)
-        # static_feat = self._maybe_debug_tensor(static_feat, "scene_encoder.static_feat_postproj", clamp=1e6)
-        # route_feat = self._maybe_debug_tensor(route_feat, "scene_encoder.route_feat_postproj", clamp=1e6)
-        # ego_feat = self._maybe_debug_tensor(ego_feat, "scene_encoder.ego_feat_postproj", clamp=1e6)
-
-        # ----------------- Cross-modal Fusion -----------------
+        
+        # Cross-modal fusion
         ego_mask = torch.ones((batch_size, 1), dtype=torch.bool, device=device)  # [B,1]
         concat_feat = torch.cat([road_feat, route_feat, static_feat, agent_feat, ego_feat], dim=1)
         concat_mask = torch.cat([road_mask, route_mask, static_mask, agent_mask, ego_mask], dim=1)
 
-        # 生成带batch维度的position_ids
+        # Create position ids with a batch dimension.
         position_ids = torch.cat([
             torch.full((road_feat.shape[1],), SceneFeatureIDX.ROAD,),
             torch.full((route_feat.shape[1],), SceneFeatureIDX.ROUTE,),
@@ -169,12 +158,12 @@ class SceneStateEncoder(nn.Module):
         return template.unsqueeze(0).expand(batch_size, -1)
     
     def count_parameters(self):
-        """统计模型参数数量
+        """Count model parameters.
         Returns:
-            tuple: (总参数数量, 活动参数数量)
+            tuple: (total parameter count, active parameter count)
         """
         total = sum(p.numel() for p in self.parameters())
-        active = total  # 对于普通编码器，所有参数都是活动的
+        active = total  # All parameters are active for the standard encoder.
         return total, active
 
 class EgoStateEncoder(nn.Module):
@@ -442,10 +431,6 @@ class RoadEncoder(nn.Module):
         return fused, road_data.road_mask
     
 class StaticObstacleEncoder(nn.Module):
-    """
-    Batch-processable static obstacle encoder with tensor padding
-    Processes batched input with variable number of obstacles per sample
-    """
     
     def __init__(self,
                  hidden_dim=256,

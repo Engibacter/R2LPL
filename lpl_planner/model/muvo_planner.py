@@ -62,7 +62,7 @@ class MUVOPlanner(nn.Module):
                  use_prediction: bool = True,
                  prediction_loss_weight: float = 1.0,
                  score_chunk_size: int = 256,
-                 imitation_target_tau: float = 0.05,   # 越小越尖；1.0 等价旧行为（尺度类似）
+                 imitation_target_tau: float = 0.05,   # Smaller values sharpen the target; 1.0 approximates the legacy scale.
                  prediction_time_weight_gamma: float = 0.5,
                  teacher_anchor_ratio: float = 0.2,
                  teacher_min_anchor_num: int = 1,

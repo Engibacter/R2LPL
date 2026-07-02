@@ -402,21 +402,21 @@ def timed_score_of_trajectories(trajectories: npt.NDArray[np.float64],
 
 def _finite_diff(x: npt.NDArray[np.float64], dt: float) -> npt.NDArray[np.float64]:
     """
-    中心差分（端点用前/后向差分），保持与 x 同形状。
+    Centered finite differences, with forward/backward differences at endpoints.
     x: [..., T, D]
     """
     x = np.asarray(x, dtype=np.float64)
     dx = np.zeros_like(x)
-    # 内点
+    # Interior points.
     dx[..., 1:-1, :] = (x[..., 2:, :] - x[..., :-2, :]) / (2.0 * dt)
-    # 端点
+    # Endpoints.
     dx[..., 0, :] = (x[..., 1, :] - x[..., 0, :]) / dt
     dx[..., -1, :] = (x[..., -1, :] - x[..., -2, :]) / dt
     return dx
 
 def _finite_diff_scalar(x: npt.NDArray[np.float64], dt: float) -> npt.NDArray[np.float64]:
     """
-    标量序列中心差分（端点前/后向差分），保持与 x 同形状。
+    Centered finite differences for scalar sequences, with forward/backward endpoints.
     x: [..., T]
     """
     x = np.asarray(x, dtype=np.float64)
@@ -440,16 +440,16 @@ def mean_ratio_of_trajectories_from_xyyaw(
     B, T, S = trajectories.shape
     eps = 1e-6
 
-    # 提取位置与航向
+    # Extract position and heading.
     pos = trajectories[:, :, TrajectoryState.POINT()]            # [B,T,2]
     yaw = trajectories[:, :, TrajectoryState.HEADING]            # [B,T]
-    # 解包角度避免跳变
+    # Unwrap angles to avoid discontinuities.
     yaw_unwrapped = np.unwrap(yaw, axis=1)
 
-    # Savitzky–Golay 参数（奇数窗口，自适应 T）
-    win = 9     # 基础窗口
+    # Savitzky-Golay parameters with an odd window adapted to T.
+    win = 9     # base window
     poly = 2
-    # 确保窗口为奇数且不超过 T
+    # Keep the window odd and no longer than T.
     eff_win = min(win, T if (T % 2 == 1) else T - 1)
     if eff_win < 3:
         eff_win = 3
@@ -459,31 +459,31 @@ def mean_ratio_of_trajectories_from_xyyaw(
     tvec = (np.arange(T, dtype=np.float32) * float(dt))
 
     if T >= 5:
-        # 位置的 1/2/3 阶导：速度、加速度、跃度
+        # First/second/third derivatives of position: velocity, acceleration, jerk.
         v_xy = approximate_derivatives(pos, tvec, window_length=eff_win, poly_order=poly, deriv_order=1, axis=1)  # [B,T,2]
         a_xy = approximate_derivatives(pos, tvec, window_length=eff_win, poly_order=poly, deriv_order=2, axis=1)  # [B,T,2]
         j_xy = approximate_derivatives(pos, tvec, window_length=eff_win, poly_order=poly, deriv_order=3, axis=1)  # [B,T,2]
 
-        # 航向的 1/2 阶导：角速度、角加速度
+        # First/second derivatives of heading: yaw rate, yaw acceleration.
         yaw_rate = approximate_derivatives(yaw_unwrapped, tvec, window_length=eff_win, poly_order=poly, deriv_order=1, axis=1)  # [B,T]
         yaw_acc  = approximate_derivatives(yaw_unwrapped, tvec, window_length=eff_win, poly_order=poly, deriv_order=2, axis=1)  # [B,T]
     else:
-        # T 太小时回退到有限差分，避免过小窗口引发病态滤波
+        # Fall back to finite differences for short horizons to avoid ill-conditioned filtering.
         v_xy = _finite_diff(pos, dt)
         a_xy = _finite_diff(v_xy, dt)
         j_xy = _finite_diff(a_xy, dt)
         yaw_rate = _finite_diff_scalar(yaw_unwrapped, dt)
         yaw_acc = _finite_diff_scalar(yaw_rate, dt)
 
-    # 标量速度
+    # Scalar speed.
     v = np.linalg.norm(v_xy, axis=-1)                            # [B,T]
 
-    # 首帧锚定：使用输入的纵向速度/加速度
+    # Anchor the first frame with the input longitudinal velocity/acceleration.
     v0_long = trajectories[:, 0, 3]     # [B]
     t_hat = np.stack([np.cos(yaw_unwrapped[:, 0]), np.sin(yaw_unwrapped[:, 0])], axis=-1)  # [B,2]
     v_xy[:, 0, :] = (v0_long[:, None] * t_hat)
     v[:, 0] = v0_long
-    # 用前向差分重估首帧加速度
+    # Re-estimate first-frame acceleration with a forward difference.
     if T > 1:
         a_xy[:, 0, :] = (v_xy[:, 1, :] - v_xy[:, 0, :]) / (tvec[1] - tvec[0] + eps)
 
@@ -491,14 +491,14 @@ def mean_ratio_of_trajectories_from_xyyaw(
     a0_long = trajectories[:, 0, 4]
     a_lon[:, 0] = a0_long
 
-    # 横向加速度：a_lat = v * yaw_rate（= v^2 * 曲率）
+    # Lateral acceleration: a_lat = v * yaw_rate (= v^2 * curvature).
     a_lat = v * yaw_rate
 
-    # 纵向跃度与跃度模
+    # Longitudinal jerk and jerk magnitude.
     j_lon = approximate_derivatives(a_lon, tvec, window_length=eff_win, poly_order=poly, deriv_order=1, axis=1) if T >= 5 else _finite_diff_scalar(a_lon, dt)  # [B,T]
     j_mag = np.linalg.norm(j_xy, axis=-1) 
 
-    # 评分
+    # Scores.
     lon_acc_score = mean_ratio_within_bound(a_lon, min_bound=min_lon_acc, max_bound=max_lon_acc)
     lat_acc_score = mean_ratio_within_bound(a_lat, min_bound=-max_lat_acc, max_bound=max_lat_acc)
     lon_jerk_score = mean_ratio_within_bound(j_lon, min_bound=-max_lon_jerk, max_bound=max_lon_jerk)
@@ -525,19 +525,19 @@ def timed_score_of_trajectories_from_xyyaw(trajectories: npt.NDArray[np.float64]
                                     max_yaw_acc: float) -> npt.NDArray[np.float64]:
     """
     Calculate the timed score of trajectories in batch-dim from x,y,yaw.
-    使用 Savitzky-Golay 滤波器近似导数，降低差分噪声。
+    Use Savitzky-Golay filtering to approximate derivatives and reduce difference noise.
     :param trajectories: trajectory values [B,T,S]
     :return: NDarray of timed score of trajectories (-1, 1) with shape [B,T,6]
     """
     B, T, S = trajectories.shape
     eps = 1e-6
 
-    # 位置、航向
+    # Position and heading.
     pos = trajectories[:, :, TrajectoryState.POINT()]     # [B,T,2]
     yaw = trajectories[:, :, TrajectoryState.HEADING]     # [B,T]
     yaw_unwrapped = np.unwrap(yaw, axis=1)
 
-    # 自适应 Savitzky–Golay 参数
+    # Adaptive Savitzky-Golay parameters.
     win = 9
     poly = 2
     eff_win = min(win, T if (T % 2 == 1) else T - 1)
@@ -560,30 +560,30 @@ def timed_score_of_trajectories_from_xyyaw(trajectories: npt.NDArray[np.float64]
         yaw_rate = _finite_diff_scalar(yaw_unwrapped, dt)
         yaw_acc = _finite_diff_scalar(yaw_rate, dt)
 
-    # 速度模长与单位切向/法向（瞬时车体坐标系）
+    # Speed magnitude and unit tangent/normal in the instantaneous body frame.
     v = np.linalg.norm(v_xy, axis=-1)  # [B,T]
     t_hat = np.stack([np.cos(yaw_unwrapped), np.sin(yaw_unwrapped)], axis=-1)        # [B,T,2]
-    # 可选：法向 n_hat = [-sin(yaw), cos(yaw)] 如需用到
+    # Optional normal vector: n_hat = [-sin(yaw), cos(yaw)].
 
-    # 纵向加速度（切向）：a_lon = dv/dt（比直接投影更稳）
+    # Longitudinal acceleration (tangent): a_lon = dv/dt, which is more stable than direct projection.
     if T >= 5:
         a_lon = approximate_derivatives(v, tvec, window_length=eff_win, poly_order=poly, deriv_order=1, axis=1)  # [B,T]
     else:
         a_lon = _finite_diff_scalar(v, dt)
 
-    # 横向加速度（法向）：a_lat = v * yaw_rate
+    # Lateral acceleration (normal): a_lat = v * yaw_rate.
     a_lat = v * yaw_rate  # [B,T]
 
-    # 纵向跃度：j_lon = d(a_lon)/dt
+    # Longitudinal jerk: j_lon = d(a_lon)/dt.
     if T >= 5:
         j_lon = approximate_derivatives(a_lon, tvec, window_length=eff_win, poly_order=poly, deriv_order=1, axis=1)  # [B,T]
     else:
         j_lon = _finite_diff_scalar(a_lon, dt)
 
-    # 跃度模长：||第三阶位置导数||
+    # Jerk magnitude: norm of the third-order position derivative.
     j_mag = np.linalg.norm(j_xy, axis=-1)  # [B,T]
 
-    # 评分
+    # Scores.
     lon_acc_score = score_metric_within_bounds(a_lon, min_bound=min_lon_acc, max_bound=max_lon_acc)
     lat_acc_score = score_metric_within_bounds(a_lat, min_bound=-max_lat_acc, max_bound=max_lat_acc)
     lon_jerk_score = score_metric_within_bounds(j_lon, min_bound=-max_lon_jerk, max_bound=max_lon_jerk)

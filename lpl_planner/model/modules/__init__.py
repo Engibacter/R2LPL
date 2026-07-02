@@ -77,7 +77,7 @@ class Mlp(nn.Module):
         logger.warning("[MlpDebug] %s::param_check -> %s", self.debug_name, " | ".join(msgs))
 
     def forward(self, x):
-        # --- new: assert last-dim matches expected (helps发现错误拼接/空维度) ---
+        # Guard against malformed concatenation or empty feature dimensions.
         if x.dim() == 0:
             raise RuntimeError(f"{self.debug_name} received scalar input.")
         
@@ -123,7 +123,7 @@ class Mlp(nn.Module):
         if not finite.all():
             num_bad = (~finite).sum().item()
             total = x.numel()
-            # 统计有限值范围，避免min/max被NaN污染
+            # Compute finite ranges without letting NaN/Inf pollute min/max.
             finite_vals = x[finite]
             fin_min = finite_vals.min().item() if finite_vals.numel() > 0 else float("nan")
             fin_max = finite_vals.max().item() if finite_vals.numel() > 0 else float("nan")

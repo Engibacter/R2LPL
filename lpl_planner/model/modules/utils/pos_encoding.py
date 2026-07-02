@@ -7,7 +7,7 @@ class VectorizedFourierEncoding(nn.Module):
         super().__init__()
 
         self.L = L
-        # 预计算所有频率 [L]
+        # Precompute all frequency bands [L].
         freqs = 2.0 ** torch.arange(L, dtype=torch.float32)
         self.register_buffer('frequencies', freqs, persistent=False)
         

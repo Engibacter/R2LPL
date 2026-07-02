@@ -37,7 +37,7 @@ class MVLightningModule(pl.LightningModule):
         return value
 
     def _move_to_device(self, obj, device):
-        # NuPlan Feature/Target 对象
+        # nuPlan feature/target objects
         if hasattr(obj, "to_device") and callable(getattr(obj, "to_device")):
             return obj.to_device(device)
         # Torch tensor
@@ -50,7 +50,7 @@ class MVLightningModule(pl.LightningModule):
         if isinstance(obj, (list, tuple)):
             t = [self._move_to_device(v, device) for v in obj]
             return type(obj)(t) if not isinstance(obj, list) else t
-        # 其他类型原样返回
+        # Leave other object types unchanged.
         return obj
 
     def _sanitize_nonfinite_recursive(self, obj, prefix: str):
@@ -161,7 +161,7 @@ class MVLightningModule(pl.LightningModule):
         warmup_steps = max(warmup_steps, epoch_step+10)
         self.warmup_steps = warmup_steps
 
-        # 线性 warmup（从 0.1% lr 提升到 base lr），然后余弦到 1e-5
+        # Linear warmup from 0.1% of base LR to base LR, then cosine decay to 1e-5.
         warmup = LinearLR(optimizer, start_factor=1e-3, total_iters=warmup_steps)
         cosine = CosineAnnealingLR(optimizer, T_max=max(1, total_steps - warmup_steps), eta_min=1e-5)
         seq = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[warmup_steps])
@@ -188,8 +188,8 @@ class MVLightningModule(pl.LightningModule):
 
     # def lr_scheduler_step(self, scheduler, metric):
     #     """
-    #     - warmup 步内：只走 LinearLR，跳过 Plateau。
-    #     - warmup 结束后：停止再调用 LinearLR，允许 Plateau 生效。
+    #     - During warmup, step only LinearLR and skip Plateau.
+    #     - After warmup, stop stepping LinearLR and allow Plateau to take effect.
     #     """
     #     if isinstance(scheduler, ReduceLROnPlateau):
     #         if self.global_step < self.warmup_steps:
@@ -198,7 +198,7 @@ class MVLightningModule(pl.LightningModule):
     #     else:  # LinearLR
     #         if self.global_step < self.warmup_steps:
     #             scheduler.step()
-    #         # warmup 结束后不再 step，避免覆盖 Plateau
+    #         # Stop stepping after warmup to avoid overriding Plateau.
 
 
     # def _nonfinite_state(self):

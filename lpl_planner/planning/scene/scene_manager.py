@@ -569,8 +569,6 @@ class SceneManager:
         # update lane map
         self.lane_map.step_with_planner_init(ego_state, scenario=scenario, iteration=iteration)
 
-        # update agent manager
-        # self.agent_manager.step_with_planner_input(planner_input, self.lane_map)
 
 
     def _update_state_from_scenario(self, ego_state: EgoState):
@@ -641,7 +639,7 @@ class SceneManager:
             custom_traj = custom_traj.reshape(-1, 2)
         score_norm = self._normalize_visual_scores(score)
         for idx, traj_score in enumerate(score_norm):
-            # 颜色按score从低到高：浅绿 -> 深绿
+            # Color by score from low to high: light green to dark green.
             cmap = plt.get_cmap('Greens')
             color_rgba = cmap(0.10 + 0.75 * traj_score)
             alpha = 0.08 + 0.82 * traj_score
@@ -692,7 +690,7 @@ class SceneManager:
         cmap = plt.get_cmap('viridis')
         colors = cmap(score_norm)
 
-        # 画三维点
+        # Draw 3D score points.
         self.ax2.clear()
         self.ax2 = self.fig2.add_subplot(111, projection='3d')
         xs = weighted_score[0, :]
@@ -900,29 +898,29 @@ class SceneManager:
             return (poly - center) @ rot_mat.T + center
 
 
-        # 绘制道路中心线
+        # Draw road centerlines.
         for idx, center_line in enumerate(road_feature.center_line):
             center_line = np.array(center_line)
             tl_date = road_feature.road_traffic_light[idx]
             if center_line.shape[0] > 1:
-                if tl_date == 3:  # 红灯
+                if tl_date == 3:  # Red light.
                     axes.plot(center_line[:, 0], center_line[:, 1], color='red', linestyle='--', linewidth=1, alpha=0.7)
                 else:
                     axes.plot(center_line[:, 0], center_line[:, 1], color='gray', linestyle='--', linewidth=1, alpha=0.7)
-        # 绘制道路多边形
+        # Draw road polygons.
         for polygon in road_feature.road_geometry:
             polygon = np.array(polygon)
             if polygon.shape[0] > 2:
                 axes.fill(polygon[:, 0], polygon[:, 1], color='lightgray', alpha=0.3, edgecolor='gray')
 
-        # 绘制参考路径
+        # Draw the route area.
         for route_polygon in route_feature.route_geometry:
             route_polygon = np.array(route_polygon)
             if route_polygon.shape[0] > 2:
                 axes.fill(route_polygon[:, 0], route_polygon[:, 1], color='green', alpha=0.2, edgecolor='green')
 
 
-        # 绘制本车多边形
+        # Draw the ego footprint.
         ego_pose = np.array([0,0,0])
         ego_half_width = ego_feature.ego_geometry[0]
         ego_half_length = ego_feature.ego_geometry[1]
@@ -943,7 +941,7 @@ class SceneManager:
         ])
         axes.fill(ego_poly[:, 0], ego_poly[:, 1], color='blue', alpha=0.5, label='Ego Vehicle', edgecolor='blue')
 
-        # 绘制静态障碍物多边形
+        # Draw static obstacle polygons.
         if len(static_obstacle_feature.static_obstacle_position) > 0:
             static_obj_pos = np.asarray(static_obstacle_feature.static_obstacle_position) # [N, (x,y,yaw)]
             static_obj_dim = np.asarray(static_obstacle_feature.static_object_dimension) # [N, (half_length, half_width)]
@@ -966,7 +964,7 @@ class SceneManager:
             static_obj_poly = np.array(static_obj_poly_rotated)
             static_obj_poly = np.array(static_obj_poly)
             static_obj_poly = static_obj_poly.reshape(-1, 4, 2)
-            # 绘制静态障碍物多边形
+            # Draw static obstacle polygons.
             for static_obj_idx, poly in enumerate(static_obj_poly):
                 pose = static_obj_pos[static_obj_idx]
                 if poly.shape[0] > 2:
@@ -976,7 +974,7 @@ class SceneManager:
                         axes.fill(poly[:, 0], poly[:, 1], color='red', alpha=0.3, edgecolor='red')
 
 
-        # 绘制周围车辆多边形与历史轨迹
+        # Draw surrounding vehicle polygons and history.
         if len(agent_feature.agent_current_state) > 0:
 
             # print(f"Agent vehicles found: {len(agent_feature.agent_current_state)}")
@@ -1003,7 +1001,7 @@ class SceneManager:
             agent_poly = np.array(agent_poly_rotated)
             agent_poly = np.array(agent_poly)
             agent_poly = agent_poly.reshape(-1, 4, 2)
-            # 绘制周围车辆多边形与历史轨迹
+            # Draw surrounding vehicle polygons and history.
             for i, _ in enumerate(agent_current):
                 pose = agent_current[i]
                 poly = agent_poly[i]
@@ -1012,20 +1010,20 @@ class SceneManager:
                         axes.fill(poly[:, 0], poly[:, 1], color='orange', alpha=0.3, label='Agent Vehicle', edgecolor='orange')
                     else:
                         axes.fill(poly[:, 0], poly[:, 1], color='orange', alpha=0.3, edgecolor='orange')
-                    # 绘制历史轨迹（去除padding，并用不同颜色区分）
+                    # Draw valid history points after removing padding.
                     history = agent_hist[i]
                     hist_mask = agent_hist_mask[i]
-                    # 只保留有效的历史轨迹点
+                    # Keep only valid history points.
                     valid_idx = np.where(hist_mask)[0]
                     if len(valid_idx) > 1:
                         valid_history = history[valid_idx]
                         axes.plot(valid_history[:, 0], valid_history[:, 1], color='purple', linestyle='--', linewidth=2, alpha=0.5)
             if agent_prediction is not None and prediction_mode == 'prediction':
             
-            # 绘制预测轨迹
+                # Draw predicted trajectories.
                 agent_future = np.array(agent_prediction.agent_future_state)  # [N, T, (x,y,yaw,vx,vy)]
                 agent_future_mask = np.array(agent_prediction.agent_future_mask)
-                # 去掉padding的future轨迹
+                # Remove padding from future trajectories.
                 for i, future in enumerate(agent_future):
                     mask = agent_future_mask[i]
                     valid_idx = np.where(mask)[0]
@@ -1033,7 +1031,7 @@ class SceneManager:
                         valid_future = future[valid_idx]
                         axes.plot(valid_future[:, 0], valid_future[:, 1], color='orange', linestyle='-', linewidth=2, alpha=0.6)
             elif prediction_mode == 'CV' or prediction_mode == 'CA' or prediction_mode == 'CYAW':
-                # 绘制基于当前速度的匀速直线预测轨迹//基于当前加速度的匀加速直线预测轨迹//基于当前偏航率的匀偏航率圆弧预测轨迹
+                # Draw CV, CA, or constant-yaw-rate future trajectories.
                 for i, current in enumerate(agent_current):
                     x, y = current[0], current[1]
                     yaw = current[2]
@@ -1056,26 +1054,26 @@ class SceneManager:
                     future_positions = np.array(future_positions)
                     axes.plot(future_positions[:, 0], future_positions[:, 1], color='orange', linestyle=':', linewidth=2, alpha=0.6)
             
-        # 绘制参考路径
+        # Draw the reference path.
         # ref_path = ref_path_feature.numpy()
         # lane_bound = ref_path[:,3:5]
         # left_bound = np.expand_dims(lane_bound[:,0],axis=1)*np.vstack((np.cos(ref_path[:,2]+np.pi/2),np.sin(ref_path[:,2]+np.pi/2))).T + ref_path[:,:2]
         # right_bound = np.expand_dims(lane_bound[:,1],axis=1)*np.vstack((np.cos(ref_path[:,2]+np.pi/2),np.sin(ref_path[:,2]+np.pi/2))).T + ref_path[:,:2]
         # axes.plot(ref_path[:, 0], ref_path[:, 1], color='green', linestyle='-', linewidth=2, alpha=0.5)
         # # print(f'left_bound.shape: {left_bound.shape}')
-        # # 绘制参考路径的左右边界多边形
+        # # Draw left/right reference-path boundary polygons.
         # ref_path_poly = np.vstack([left_bound, right_bound[::-1]])
         # axes.fill(ref_path_poly[:, 0], ref_path_poly[:, 1], color='green', alpha=0.2)
         # # ax.fill_between(ref_path[:, 0], left_bound, right_bound, color='green', alpha=0.2, label='Reference Path Boundary')
 
-        # 绘制所有候选轨迹
+        # Draw all candidate trajectories.
         if all_trajectories is not None and all_trajectory_scores is not None:
             # print(f"All candidate trajectories found: {len(all_trajectories)}")
             # print(f"All candidate trajectory scores: {all_trajectory_scores}")
             # print(f"All candidate trajectory : {all_trajectories}")
             score_norm = self._normalize_visual_scores(all_trajectory_scores)
             for idx, traj_score in enumerate(score_norm):
-                # 颜色按score从低到高：浅蓝 -> 深蓝
+                # Color by score from low to high: light blue to dark blue.
                 cmap = plt.get_cmap('Blues')
                 color_rgba = cmap(0.10 + 0.75 * traj_score)
                 alpha = 0.06 + 0.88 * traj_score
@@ -1181,11 +1179,11 @@ class SceneManager:
                     label='Expert Route Ref Path',
                 )
 
-        # 绘制专家轨迹
+        # Draw the expert trajectory.
         if expert_trajectory is not None:
             axes.plot(expert_trajectory[:, 0], expert_trajectory[:, 1], color='orange', linewidth=2, alpha=0.85, zorder=4.0, label='Expert Trajectory')
 
-        # 绘制选中轨迹
+        # Draw the selected trajectory.
         if chosen_trajectory is not None:
             axes.plot(chosen_trajectory[:, 0], chosen_trajectory[:, 1], color='#dc2626', linewidth=2.8, alpha=0.95, zorder=4.4, label='Chosen Trajectory')
 

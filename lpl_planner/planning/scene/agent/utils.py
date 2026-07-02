@@ -93,7 +93,7 @@ def _smooth_1d(arr: np.ndarray, window: int, poly: int) -> np.ndarray:
     T = arr.shape[-1]
     if T < 3 or window <= 1:
         return arr
-    # window 必须为奇数且不大于 T
+    # The window must be odd and no longer than T.
     w = min(window if window % 2 == 1 else window - 1, T if T % 2 == 1 else T - 1)
     if w < 3:
         return arr
@@ -146,6 +146,6 @@ def process_agent_states(agent_states: np.ndarray,
     yaw_rate_smooth = _smooth_1d(yaw_rate, window=yawrate_window, poly=2)
 
     out = np.stack([x, y, yaw, v_smooth, a, yaw_rate_smooth], axis=-1)
-    # 清理数值异常
+    # Sanitize numerical outliers.
     out = np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
     return out

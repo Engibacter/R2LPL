@@ -1,5 +1,3 @@
-from dataclasses import dataclass, field
-from typing import List
 import numpy as np
 import numpy.typing as npt
 from enum import Enum
@@ -102,24 +100,3 @@ class Intent(Enum):
     LC_RIGHT = 2
     BRAKE_KEEP = 3
 
-@dataclass
-class FrenetTraj:
-    """
-    Container for a single Frenet trajectory and its Cartesian projection.
-    """
-    t: List[float] = field(default_factory=list)
-    d: List[float] = field(default_factory=list)
-    d_dot: List[float] = field(default_factory=list)
-    d_dotdot: List[float] = field(default_factory=list)
-    d_dotdotdot: List[float] = field(default_factory=list)
-    s: List[float] = field(default_factory=list)
-    s_dot: List[float] = field(default_factory=list)
-    s_dotdot: List[float] = field(default_factory=list)
-    s_dotdotdot: List[float] = field(default_factory=list)
-
-    x: List[float] = field(default_factory=list)
-    y: List[float] = field(default_factory=list)
-    yaw: List[float] = field(default_factory=list)
-    ds: List[float] = field(default_factory=list)
-    c: List[float] = field(default_factory=list)
-    intent: Intent = Intent.KEEP

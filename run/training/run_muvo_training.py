@@ -254,16 +254,6 @@ def main(cfg: DictConfig) -> None:
     else:
         logger.info("No checkpoint found. Starting fresh.")
 
-    # from lightning.pytorch.tuner import Tuner
-    # tuner = Tuner(trainer)
-    # new_bs = tuner.scale_batch_size(
-    #     rm_lightning_module,
-    #     train_dataloaders=train_dataloader,
-    #     mode="binsearch",   # 或 "power"
-    #     init_val=8,
-    #     max_trials=25,
-    # )
-    # print("Suggested batch size:", new_bs)
 
     logger.info("Starting Training")
     trainer.fit(rm_lightning_module,

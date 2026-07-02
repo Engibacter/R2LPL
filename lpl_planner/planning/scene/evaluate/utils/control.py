@@ -508,7 +508,7 @@ class BatchLQRTracker:
         poses = proposal_states[:, current_iteration.index:, :3]  # [K, T', 3]
         K, Tprime, _ = poses.shape
         if Tprime < 2:
-            # Fallback: no future points,输出零
+            # Fallback: no future points, output zeros.
             init_vel = initial_state[:, StateIndex.VELOCITY_X]
             init_lat = np.stack([
                 np.zeros(K), np.zeros(K),
@@ -597,7 +597,7 @@ class BatchLQRTracker:
         sa = np.clip(steering_angle, -np.pi / 3, np.pi / 3)
         base_rate = (delta_target - sa) / dt
 
-        # 约束保持不变...
+        # Keep the existing steering/yaw-rate constraints.
         max_abs_yaw_rate = 0.95
         max_abs_yaw_accel = 1.85
         v_safe = np.maximum(initial_velocity, 1e-3)

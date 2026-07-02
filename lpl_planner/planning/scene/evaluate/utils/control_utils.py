@@ -458,7 +458,7 @@ def _get_velocity_and_acceleration(
       - current_state:     [K, S]
       - timesteps:         [T]
     Outputs:
-      - velocities_ds:     [K, T, 2]  (v_lon, v_lat) at steps 1..T projected到车体系
+      - velocities_ds:     [K, T, 2]  (v_lon, v_lat) at steps 1..T projected into the ego frame
       - accelerations_ds:  [K, T, 2]  (a_lon, a_lat)
     """
     assert trajectory_states.ndim == 3, "trajectory_states must be [K, T+1, S]"

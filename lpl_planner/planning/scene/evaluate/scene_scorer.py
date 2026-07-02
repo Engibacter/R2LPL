@@ -1078,7 +1078,7 @@ class BatchEvaluator:
             constant_velocity_buffer_time = 0  # number of time steps to use constant velocity 
             valid_agent_idx = np.arange(num_agents)  # initialize valid agent indices
             if num_agents > 0:
-                # 获取当前时刻的 agent 位姿，确保为 float64 ndarray
+                # Get the agent pose at the current time index as a float64 ndarray.
                 if time_idx == 0:
                     agent_current = agent_current_state[:num_agents, :3]
                     agent_previous = agent_current_state[:num_agents, :]
@@ -1865,7 +1865,7 @@ class BatchEvaluator:
             yaw_diff = np.abs(np.arctan2(np.sin(endpoints_yaw - expect_yaw), np.cos(endpoints_yaw - expect_yaw)))  # [N,]
             yaw_diff[yaw_diff < max_yaw_diff] = 0.0  # within threshold
             consistent = np.clip(1.0 - yaw_diff / (np.pi/2), 0.0, 1.0)  # [N,] normalize to [0,1]
-            consistent[neareat_expert_dist > 10.0] = 0.0  # 超过距离阈值认为不一致
+            consistent[neareat_expert_dist > 10.0] = 0.0  # Treat distant endpoints as inconsistent.
             valid_driving_direction_scores = valid_driving_direction_scores * consistent
 
         driving_direction_compliance_scores[valid_mask] = valid_driving_direction_scores

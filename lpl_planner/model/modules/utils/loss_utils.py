@@ -552,16 +552,16 @@ def corners_in_any_road(corners: torch.Tensor,
     corners: [B,K,4,2]
     road_polygons_batch: [B,P,V,2]
     Returns [B,K] True if each of the 4 corner points lies inside at least one polygon
-    (不要求四个角同时位于同一个 polygon 中).
+    (corners do not need to fall inside the same polygon).
     """
     B, K, C, _ = corners.shape
     assert C == 4, "Expected 4 corners"
     pts_flat = corners.view(B, K * C, 2)                 # [B,K*4,2]
     inside_each = batched_point_in_polygon(pts_flat, road_polygons_batch)  # [B,K*4,P]
     inside_each = inside_each.view(B, K, C, -1)          # [B,K,4,P]
-    # 每个角是否在任一 polygon 内
+    # Whether each corner lies inside any polygon.
     corner_in_some_poly = inside_each.any(dim=-1)        # [B,K,4]
-    # 所有四个角都至少落在某个 polygon
+    # All four corners lie inside some polygon.
     all_corners_ok = corner_in_some_poly.all(dim=2)      # [B,K]
     return all_corners_ok
 
@@ -580,9 +580,9 @@ def centers_in_route_score(centers: torch.Tensor,
     inside_all = inside_any.all(dim=-1)  # [B,K]
     inside_any = inside_any.any(dim=-1)  # [B,K]
     score = inside_all.float()
-    score[~inside_any] = 0.0  # 如果一个点都不在路线上，得分为0
-    score[inside_all] = 1.0  # 如果所有点都在路线上，得分为1
-    score[(~inside_all) & inside_any] = 0.5  # 部分点在路线上，得分为0.5
+    score[~inside_any] = 0.0  # No points are on the route.
+    score[inside_all] = 1.0  # All points are on the route.
+    score[(~inside_all) & inside_any] = 0.5  # Some points are on the route.
     return score
 
 def compute_progress(last_pos: torch.Tensor,
@@ -605,4 +605,3 @@ def compute_progress(last_pos: torch.Tensor,
     prog = cum.gather(1, idx) / (cum[:, -1:].clamp_min(1e-6))  # [B,K]
     prog = prog.clamp(0.0, 1.0)
     return prog
-

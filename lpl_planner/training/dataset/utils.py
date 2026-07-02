@@ -32,7 +32,7 @@ def draw_model_in_out(
         x_lim = [np.min(trajectory[:,0])-5, np.max(trajectory[:,0])+5]
         y_lim = [np.min(trajectory[:,1])-5, np.max(trajectory[:,1])+5]
         max_range = max(x_lim[1]-x_lim[0], y_lim[1]-y_lim[0])
-        max_range = max(50, max_range)  # 最小范围50米
+        max_range = max(50, max_range)  # Minimum range: 50 meters.
         x_center = (x_lim[0] + x_lim[1]) / 2
         y_center = (y_lim[0] + y_lim[1]) / 2
         x_lim = [x_center - max_range / 2, x_center + max_range / 2]
@@ -56,34 +56,34 @@ def draw_model_in_out(
 
     
 
-    # 绘制道路中心线
+    # Draw road centerlines.
     for idx, center_line in enumerate(road_feature.center_line):
         center_line = np.array(center_line)
         tl_date = road_feature.road_traffic_light[idx]
         if center_line.shape[0] > 1:
-            if tl_date == 3:  # 红灯
+            if tl_date == 3:  # Red light.
                 axes.plot(center_line[:, 0], center_line[:, 1], color='red', linestyle='--', linewidth=1, alpha=0.7)
             else:
                 axes.plot(center_line[:, 0], center_line[:, 1], color='gray', linestyle='--', linewidth=1, alpha=0.7)
 
-    # 绘制道路多边形
+    # Draw road polygons.
     # print(f'road_feature.road_geometry shape: {road_feature.road_geometry.shape}')
     for idx, polygon in enumerate(road_feature.road_geometry):
         polygon = np.array(polygon)
         tl_date = road_feature.road_traffic_light[idx]
         if polygon.shape[0] > 2:
-            if tl_date == 3:  # 红灯
+            if tl_date == 3:  # Red light.
                 axes.fill(polygon[:, 0], polygon[:, 1], color='lightcoral', alpha=0.3, edgecolor='red')
             else:
                 axes.fill(polygon[:, 0], polygon[:, 1], color='lightgray', alpha=0.3, edgecolor='gray')
 
-    # # 绘制route道路中心线
+    # # Draw route centerlines.
     # for idx, center_line in enumerate(route_feature.center_line):
     #     center_line = np.array(center_line)
     #     if center_line.shape[0] > 1:
     #         axes.plot(center_line[:, 0], center_line[:, 1], color='green', linestyle='--', linewidth=1, alpha=0.7)
             
-    # 绘制route道路多边形
+    # Draw route polygons.
     for idx, polygon in enumerate(route_feature.route_geometry):
         polygon = np.array(polygon)
         if polygon.shape[0] > 2:
@@ -94,7 +94,7 @@ def draw_model_in_out(
         if center_line.shape[0] > 1:
             axes.plot(center_line[:, 0], center_line[:, 1], color='green', linestyle='-', linewidth=2, alpha=0.5)
 
-    # 绘制本车多边形
+    # Draw the ego footprint.
     ego_pose = np.array([0,0,0])
     ego_half_width = ego_feature.ego_geometry[0]
     ego_half_length = ego_feature.ego_geometry[1]
@@ -111,12 +111,12 @@ def draw_model_in_out(
     ])
     axes.fill(ego_poly[:, 0], ego_poly[:, 1], color='blue', alpha=0.5, label='Ego Vehicle', edgecolor='blue')
 
-    # 绘制本车历史轨迹
+    # Draw ego history.
     ego_history = np.array(ego_feature.ego_history_state)  # [T, (x,y,yaw,vx,vy)]
     valid_history = ego_history
     axes.plot(valid_history[:, 0], valid_history[:, 1], color='blue', linestyle='--', linewidth=1.5, alpha=0.5)
 
-    # 绘制静态障碍物多边形
+    # Draw static obstacle polygons.
     if len(static_obstacle_feature.static_obstacle_position) > 0:
         static_obstacle_feature.static_obstacle_position = np.array(static_obstacle_feature.static_obstacle_position) 
         static_obj_pos = static_obstacle_feature.static_obstacle_position # [N, (x,y,yaw)]
@@ -140,7 +140,7 @@ def draw_model_in_out(
         static_obj_poly = np.array(static_obj_poly_rotated)
         static_obj_poly = np.array(static_obj_poly)
         static_obj_poly = static_obj_poly.reshape(-1, 4, 2)
-        # 绘制静态障碍物多边形
+        # Draw static obstacle polygons.
         for static_obj_idx, poly in enumerate(static_obj_poly):
             pose = static_obj_pos[static_obj_idx]
             if poly.shape[0] > 2:
@@ -154,7 +154,7 @@ def draw_model_in_out(
             if polygon.shape[0] > 2:
                 axes.fill(polygon[:, 0], polygon[:, 1], color='yellow', alpha=0.2, edgecolor='gold', label='Route Area' if idx==0 else None)
 
-    # 绘制周围车辆多边形与历史轨迹
+    # Draw surrounding vehicle polygons and history.
     if len(agent_feature.agent_current_state) > 0:
 
         # print(f"Agent vehicles found: {len(agent_feature.agent_current_state)}")
@@ -180,7 +180,7 @@ def draw_model_in_out(
         agent_poly = np.array(agent_poly_rotated)
         agent_poly = np.array(agent_poly)
         agent_poly = agent_poly.reshape(-1, 4, 2)
-        # 绘制周围车辆多边形与历史轨迹
+        # Draw surrounding vehicle polygons and history.
         for i, _ in enumerate(agent_current):
             pose = agent_current[i]
             poly = agent_poly[i]
@@ -189,19 +189,19 @@ def draw_model_in_out(
                     axes.fill(poly[:, 0], poly[:, 1], color='orange', alpha=0.3, label='Agent Vehicle', edgecolor='orange')
                 else:
                     axes.fill(poly[:, 0], poly[:, 1], color='orange', alpha=0.3, edgecolor='orange')
-                # 绘制历史轨迹（去除padding，并用不同颜色区分）
+                # Draw valid history points after removing padding.
                 history = agent_hist[i]
                 hist_mask = agent_hist_mask[i]
-                # 只保留有效的历史轨迹点
+                # Keep only valid history points.
                 valid_idx = np.where(hist_mask)[0]
                 if len(valid_idx) > 1:
                     valid_history = history[valid_idx]
                     axes.plot(valid_history[:, 0], valid_history[:, 1], color='purple', linestyle='--', linewidth=1.5, alpha=0.3)
         if agent_prediction_gt is not None:
-            # 绘制预测轨迹
+            # Draw predicted trajectories.
             agent_future = np.array(agent_prediction_gt.agent_future_state)  # [N, T, (x,y,yaw,vx,vy)]
             agent_future_mask = np.array(agent_prediction_gt.agent_future_mask)
-            # 去掉padding的future轨迹
+            # Remove padding from future trajectories.
             for i, future in enumerate(agent_future):
                 mask = agent_future_mask[i]
                 valid_idx = np.where(mask)[0]
@@ -209,10 +209,10 @@ def draw_model_in_out(
                     valid_future = future[valid_idx]
                     axes.plot(valid_future[:, 0], valid_future[:, 1], color='purple', linestyle='dotted', linewidth=2, alpha=0.5)
         if agent_prediction is not None:
-            # 绘制预测轨迹
+            # Draw predicted trajectories.
             agent_future = np.array(agent_prediction.agent_future_state)  # [N, T, (x,y,yaw,vx,vy)]
             agent_future_mask = np.array(agent_prediction.agent_future_mask)
-            # 去掉padding的future轨迹
+            # Remove padding from future trajectories.
             for i, future in enumerate(agent_future):
                 mask = agent_future_mask[i]
                 valid_idx = np.where(mask)[0]
@@ -221,7 +221,7 @@ def draw_model_in_out(
                     axes.plot(valid_future[:, 0], valid_future[:, 1], color='orange', linestyle='-', linewidth=2, alpha=0.6)
 
         
-    # 绘制所有候选轨迹
+    # Draw all candidate trajectories.
     if all_trajectories is not None and all_trajectory_scores is not None:
         plot_order = np.argsort(np.asarray(all_trajectory_scores), kind='stable')
         ordered_trajectories = np.asarray(all_trajectories)[plot_order]
@@ -229,7 +229,7 @@ def draw_model_in_out(
         ordered_simed = np.asarray(all_trajectories_simed)[plot_order] if all_trajectories_simed is not None else None
         score_norm = ordered_scores / (np.max(ordered_scores) + 1e-6)
         for idx, traj_score in enumerate(score_norm):
-            # 颜色按score从低到高：浅蓝 -> 深蓝
+            # Color by score from low to high: light blue to dark blue.
             cmap = plt.get_cmap('Blues')
             color_rgba = cmap(0.2 + 0.8 * traj_score)
             traj_alpha = 0.4
@@ -255,7 +255,7 @@ def draw_model_in_out(
                     label='Simulated Trajectory' if idx==0 else None,
                 )
 
-    # 绘制选中轨迹
+    # Draw the selected trajectory.
     if chosen_trajectory is not None:
         if num_steps is not None:
             # draw segmented chosen_trajectory with color/linestyle/linewidth transitions

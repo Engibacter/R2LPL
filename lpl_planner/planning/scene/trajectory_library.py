@@ -405,14 +405,14 @@ def process(cfg):
         
         scene_counter += 1
         data[token] = trajectories
-        # 每处理1万个轨迹就保存一次
+        # Save after every 10k trajectories.
         if traj_counter % 10000 == 0 and traj_counter > 0:
             part_path = os.path.join(LIBRARY_PATH, f"trajectory_library_part_{traj_counter//10000}.pkl")
             os.makedirs(os.path.dirname(part_path), exist_ok=True)
             with open(part_path, "wb") as f:
                 pickle.dump(data, f)
                 print(f"Saved {traj_counter} trajectories to {part_path}")
-                data = {}  # 清空，准备下一个文件
+                data = {}  # Clear the buffer for the next file.
 
     print(f"Processed {scene_counter} scenarios with {traj_counter} trajectories.")
 

@@ -26,15 +26,15 @@ class MVVisualizeCallback(pl.Callback):
         self._cached_val_batch = None
     
     def on_train_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule, outputs, batch, batch_idx) -> None:
-        # 缓存第一批训练样本用于本 epoch 可视化rn
+        # Cache the first training batch for this epoch's visualization.
         if batch_idx == 0 and self._cached_train_batch is None:
             self._cached_train_batch = batch
     
     def on_validation_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule, outputs, batch, batch_idx, dataloader_idx=0) -> None:
-        # 缓存第一批验证样本用于本 epoch 可视化
+        # Cache the first validation batch for this epoch's visualization.
         if batch_idx == 0 and dataloader_idx == 0 and self._cached_val_batch is None:
             self._cached_val_batch = batch
-        
+
     def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         if self._cached_train_batch is None:
             return
@@ -163,7 +163,7 @@ class MVVisualizeCallback(pl.Callback):
         # print(f"Validation plots logged for epoch {trainer.current_epoch}.")
 
     def _move_to_device(self, obj, device):
-        # NuPlan Feature/Target 对象
+        # nuPlan feature/target objects
         if hasattr(obj, "to_device") and callable(getattr(obj, "to_device")):
             return obj.to_device(device)
         # Torch tensor
@@ -176,6 +176,5 @@ class MVVisualizeCallback(pl.Callback):
         if isinstance(obj, (list, tuple)):
             t = [self._move_to_device(v, device) for v in obj]
             return type(obj)(t) if not isinstance(obj, list) else t
-        # 其他类型原样返回
+        # Leave other object types unchanged.
         return obj
-        
