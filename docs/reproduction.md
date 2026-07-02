@@ -17,7 +17,7 @@ Let:
 Approximate peak usage:
 
 - Rollout worker: `1.5 GB` RAM and `0.7 GB` GPU memory.
-- Simulation worker: `1.5 GB` RAM and `0.7 GB` GPU memory.
+- Simulation worker: commonly `1.8-2.0 GB` RAM and `0.7 GB` GPU memory; use `2.2 GB` RAM per worker for planning.
 - Target-retrieval worker: `0.9 GB` RAM and no GPU by default.
 
 Each rollout, target-retrieval, and simulation worker uses one CPU by default. The current sub-processes obtain little benefit from allocating more than one CPU per worker, so we recommend keeping the default CPU request and only tuning worker counts and GPU fractions.
@@ -36,7 +36,7 @@ retrieval_num_workers <= min(C,
                              floor(s * R / 0.9))
 
 sim_worker_threads_per_node <= min(C,
-                                   floor(s * R / 1.5),
+                                   floor(s * R / 2.2),
                                    floor(G / sim_gpus_per_worker),
                                    floor(s * G * V / 0.7))
 ```
@@ -57,7 +57,7 @@ In practice, first select `--rollout-num-workers` and `--sim-worker-threads-per-
 --sim-gpus-per-worker ~= max(0.7 / V, G / sim_worker_threads_per_node)
 ```
 
-This intentionally reserves enough fractional GPU resource so Ray does not overpack more workers than the expected memory budget. If you observe CUDA OOM, lower `--rollout-num-workers` / `--sim-worker-threads-per-node`, or increase `--gpus-per-worker` / `--sim-gpus-per-worker`.
+This intentionally reserves enough fractional GPU resource so Ray does not overpack more workers than the expected memory budget. If Ray reports that a task was killed because the node is running low on memory, lower `--sim-worker-threads-per-node` first. If you observe CUDA OOM, lower `--rollout-num-workers` / `--sim-worker-threads-per-node`, or increase `--gpus-per-worker` / `--sim-gpus-per-worker`.
 
 ## Main Experimental Results
 
