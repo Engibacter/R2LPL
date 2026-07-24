@@ -471,9 +471,9 @@ class LaneMap(ABC):
         # use expert history to guide route plan if scenario provided
         if scenario is not None:
             expert_trajectory = scenario.get_ego_future_trajectory(iteration=0, time_horizon=15.0)
-            expert_states = [ego_state for ego_state in expert_trajectory]
-            expert_traj = np.array([ego_state.rear_axle.array for ego_state in expert_states])
-            expert_yaw = np.array([ego_state.rear_axle.heading for ego_state in expert_states])
+            expert_trajectory = [ego_state for ego_state in expert_trajectory]
+            expert_traj = np.array([ego_state.rear_axle.array for ego_state in expert_trajectory])
+            expert_yaw = np.array([ego_state.rear_axle.heading for ego_state in expert_trajectory])
             expert_half_width = ego_state.car_footprint.half_width + 1.0
             
             # ----- Build expert future trajectory buffer and derive a route along intersecting lanes -----
